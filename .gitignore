@@ -1,51 +1,43 @@
-C++.gitignore
-# =========================
-# Operating System Files
-# =========================
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
 
-# OSX
-# =========================
+# Precompiled Headers
+*.gch
+*.pch
 
-.DS_Store
-.AppleDouble
-.LSOverride
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
 
-# Thumbnails
-._*
+# Fortran module files
+*.mod
+*.smod
 
-# Files that might appear in the root of a volume
-.DocumentRevisions-V100
-.fseventsd
-.Spotlight-V100
-.TemporaryItems
-.Trashes
-.VolumeIcon.icns
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
 
-# Directories potentially created on remote AFP share
-.AppleDB
-.AppleDesktop
-Network Trash Folder
-Temporary Items
-.apdisk
+# Executables
+*.exe
+*.out
+*.app
 
-# Windows
-# =========================
+# Output Files
+output/*
+!.gitkeep
 
-# Windows image file caches
-Thumbs.db
-ehthumbs.db
+# Backup Files
+backup/*
 
-# Folder config file
-Desktop.ini
+# MATLAB temp. files
+*.asv
 
-# Recycle Bin used on file shares
-$RECYCLE.BIN/
+# Fortran temp. output files
+fort.*
 
-# Windows Installer files
-*.cab
-*.msi
-*.msm
-*.msp
-
-# Windows shortcuts
-*.lnk

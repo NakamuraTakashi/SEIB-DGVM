@@ -1,0 +1,11 @@
+BODY  {background-color:#ECFFFC ; color:black ; line-height:1.5 ; }
+h1    {color:firebrick ; text-align:center ; margin-bottom:1.0em ; }
+h2    {color:midnightblue ; margin-top:1.0em ; }
+h3    {color:black ; margin-left:3em ; }
+p     {line-height:1.5 ; margin-left:3em ; margin-right:3em ; }
+p.top    {direction:rtl ; }
+p.bottom {font-size:large ; line-height:5.0em ; text-align:center ; }
+p.inner  {margin-left:6em ; margin-right:6em ; }
+p.navi   {font-size:large ; line-height:2.0em ; text-align:center ; }
+
+p.nomargine{vertical-align:text-bottom ; margin-left:0em ; margin-right:3em ;}
