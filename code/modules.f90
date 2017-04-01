@@ -6,6 +6,7 @@ MODULE data_structure
 !_____________ Patameters that must be defined at the beginning, Part 1
 integer,parameter::PFT_no  = 16   !Number of plant functional types
 
+integer,parameter::Max_no  = 10000  !maximum individual number in a plot
 
 integer,parameter::Max_hgt = 600  !Maximum number of vertical layer (in STEP).
 ! This parameter is referred when calculating sunlight distribution in virtual forest.

@@ -13,11 +13,11 @@
 
 
         //Specizfy year of drawing
-#declare year =   30;
+#declare year =   1;
                 
 
         //Open data file
-#fopen data_file "output_forest.txt" read
+#fopen data_file "../code/output/forest.txt" read
 
 
         //Scene setting
@@ -29,12 +29,12 @@
 //camera      { location <60,15,35> look_at <-10,15,0> sky<0,0,1> angle 60 }
 
 // [3]OVERVIEW
-//camera      { location <15,62,25> look_at <15,-25,0> sky<0,0,1> angle 60 } 
+camera      { location <700,800,60> look_at <15,-25,0> sky<0,0,1> angle 60 } 
 //camera      { location <15,75,60> look_at <15,-30,0> sky<0,0,1> angle 60 } 
 //camera      { location <15,60,65> look_at <15,-10,0> sky<0,0,1> angle 60 } 
 //camera      { location <50,15,30> look_at <0,15,0> sky<0,0,1> angle 60 } 
 //camera      { location <25,75,30> look_at <25,20,0> sky<0,0,1> angle 60 } 
-camera      { location <50,140,80> look_at <50,50,0> sky<0,0,1> angle 60 } 
+//camera      { location <50,140,80> look_at <50,50,0> sky<0,0,1> angle 60 } 
 //camera      { location <50,50,150> look_at <50,50,0> sky<0,0,1> angle 60 }
                                   
 // [4]UPVIEW
@@ -54,7 +54,7 @@ light_source{ <50,-60,100> color 2 shadowless}
  
 
 background  {color Silver }
-object      {polygon{4,<0,0>,<100,0>,<100,100>,<0,100> 
+object      {polygon{4,<0,0>,<724,0>,<724,644>,<0,644> 
                     texture{ T_Silver_1D finish{reflection 0.05} }
 //                    texture {T_Grnt10}
                     }

@@ -1,4 +1,5 @@
 &Control
+	Simulation_year	  = 2,
 	Flag_spinup_read         = .false.,
 	Flag_spinup_write        = .false.,
         Flag_output_write        = .true.,
