@@ -11,6 +11,9 @@ SUBROUTINE establish (GlobalZone)
    USE vegi_status_current2
    USE grid_status_current1
    USE grid_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Local parameter
@@ -87,7 +90,8 @@ SUBROUTINE establish (GlobalZone)
    
 !est_capacity(1:PFT_no): establishment potential for each PFT based on climatic range
    est_capacity(:) = .true.
-   x = sum(sum_par_floor(:,:)) / Dived / Dived / Day_in_Year
+!   x = sum(sum_par_floor(:,:)) / Dived / Dived / Day_in_Year !!!>>>>>>>>>>>>TN:rm
+   x = sum(sum_par_floor(:,:)) / real(GRID%N_tot) / Day_in_Year !!!<<<<<<<<<<<<TN:add
    do p = 1, PFT_no
       if ( p==C3g_no .or. p==C4g_no                  ) then; est_capacity(p)=.false. ;endif
       if ( tmp_coldest_20yr_ave >=   TC_max  (p)     ) then; est_capacity(p)=.false. ;endif
@@ -208,8 +212,10 @@ if (no_possible == 0) return
 
 !loop for each ground mesh
 new = 1
-Do i = 1, Dived
-Do j = 1, Dived
+!Do i = 1, Dived !!!>>>>>>>>>>>>TN:rm
+!Do j = 1, Dived !!!>>>>>>>>>>>>TN:rm
+Do i = 1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+Do j = 1, GRID%N_y !!!<<<<<<<<<<<<TN:add
    
    !K: determin PFT of newly establish tree
    x = randf()
@@ -219,7 +225,8 @@ Do j = 1, Dived
    end do
    
    !x: adjusted establishment rate of PFT k
-   x = P_establish(k) * real(Max_loc**2) / real(Dived**2)
+!   x = P_establish(k) * real(Max_loc**2) / real(Dived**2) !!!>>>>>>>>>>>>TN:rm
+   x = P_establish(k) * real(GRID%Area) / real(GRID%N_tot) !!!<<<<<<<<<<<<TN:add
    
    !Omit establishment
    if ( .not. patch_vacant(i,j)                       ) cycle
@@ -229,15 +236,18 @@ Do j = 1, Dived
    !determine new sapling ID-number
    do while ( tree_exist(new) )
       new = new + 1
+      if ( new > Max_no ) return !!!<<<<<<<<<<<<TN:add ??? bug fix ????
    end do
-   if ( new > Max_no ) return
+!   if ( new > Max_no ) return !!!>>>>>>>>>>>>TN:rm ??? bug fix ????
    
    !initiate new sapling
    pft           (new) = k
    tree_exist    (new) = .true.
    
-   bole_x        (new) = real(Max_loc) * (real(i)-0.5) / real(Dived)
-   bole_y        (new) = real(Max_loc) * (real(j)-0.5) / real(Dived)
+!   bole_x        (new) = real(Max_loc) * (real(i)-0.5) / real(Dived) !!!>>>>>>>>>>>>TN:rm
+!   bole_y        (new) = real(Max_loc) * (real(j)-0.5) / real(Dived) !!!>>>>>>>>>>>>TN:rm
+   bole_x        (new) = real(GRID%Max_x) * (real(i)-0.5) / real(GRID%N_x) !!!<<<<<<<<<<<<TN:add
+   bole_y        (new) = real(GRID%Max_y) * (real(j)-0.5) / real(GRID%N_y) !!!<<<<<<<<<<<<TN:add
    
    crown_x       (new) = bole_x (new)
    crown_y       (new) = bole_y (new)
@@ -384,6 +394,9 @@ Subroutine fire_regime (W_fi)
    USE vegi_status_current1
    USE vegi_status_current2
    USE grid_status_current1
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Local parameter
@@ -427,7 +440,8 @@ Subroutine fire_regime (W_fi)
       x = x + Frac_trunk_AG * mass_trunk(no) + mass_leaf(no) + mass_available(no)
    End do
    x = x + sum(gmass_leaf(:,:)) + sum(gmass_available(:,:))
-   x = x * C_in_drymass / (Max_loc * Max_loc)
+!   x = x * C_in_drymass / (Max_loc * Max_loc) !!!>>>>>>>>>>>>TN:rm
+   x = x * C_in_drymass / real(GRID%Area) !!!<<<<<<<<<<<<TN:add
    if ( x < Fuel_min  ) return
    
 !_____________ moist_factor calculation
@@ -484,9 +498,12 @@ Subroutine fire_regime (W_fi)
    mass_combust= mass_combust + sum(gmass_leaf(:,:))      ; gmass_leaf     (:,:)= 0.0
    mass_combust= mass_combust + sum(gmass_available(:,:)) ; gmass_available(:,:)= 0.0
    
-   x = Min_gmass_stock * ((Max_loc/DivedG)**2) !x: minumum grass stock biomass (gDM/cell)
-   do i=1, DivedG
-   do j=1, DivedG
+!   x = Min_gmass_stock * ((Max_loc/DivedG)**2) !x: minumum grass stock biomass (gDM/cell) !!!>>>>>>>>>>>>TN:rm
+   x = Min_gmass_stock * (real(GRID%Area)/real(GRID%N_tot)) !x: minumum grass stock biomass (gDM/cell) !!!<<<<<<<<<<<<TN:add
+!   do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+!   do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
+   do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+   do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
       y                = max(0.0, x - gmass_stock(i,j) ) !y: shortfall stock biomass (gDM/cell)
       gmass_stock(i,j) = max(y  , gmass_stock(i,j)     ) !Assure minimu stock grass mass for each grass cell
       pool_litter_ag   = max(0.0, pool_litter_ag - y   ) !This mass will be taken from aboveground grass litter
@@ -570,6 +587,9 @@ Subroutine fire_regime2 (wind)
    USE vegi_status_current2
    USE grid_status_current1
    USE grid_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Local parameters
@@ -593,8 +613,10 @@ Subroutine fire_regime2 (wind)
    real    prob_topkill    !Top kill probability
    real    mass_combust    !carbon conbusted fue to fire (gDM/stand)
    
-   real,dimension(DivedG,DivedG)::grass_avandance !relative avandance of grass (fraction)
-   real,dimension(DivedG,DivedG)::fire_potential  !potential fire intensity (KJ s-1 m-1)
+!   real,dimension(DivedG,DivedG)::grass_avandance !relative avandance of grass (fraction) !!!>>>>>>>>>>>>TN:rm
+!   real,dimension(DivedG,DivedG)::fire_potential  !potential fire intensity (KJ s-1 m-1)  !!!>>>>>>>>>>>>TN:rm
+   real,dimension(GRID%N_x,GRID%N_y)::grass_avandance !relative avandance of grass (fraction) !!!<<<<<<<<<<<<TN:add
+   real,dimension(GRID%N_x,GRID%N_y)::fire_potential  !potential fire intensity (KJ s-1 m-1)  !!!<<<<<<<<<<<<TN:add
    
    real    x, y            !for general usage
    integer no              !loop counter for individual trees
@@ -605,15 +627,20 @@ Subroutine fire_regime2 (wind)
    
 !_____________ Calculate potential fire intensity
    !Unit converters
-   Unit_conv1 = 1.0 / Max_loc  / Max_loc    !(stand-1 ---> m-2)
-   Unit_conv2 = 1.0 / ((Max_loc/DivedG)**2) !(grass_cell-1 ---> m-2)
+!   Unit_conv1 = 1.0 / Max_loc  / Max_loc    !(stand-1 ---> m-2) !!!>>>>>>>>>>>>TN:rm
+!   Unit_conv2 = 1.0 / ((Max_loc/DivedG)**2) !(grass_cell-1 ---> m-2) !!!>>>>>>>>>>>>TN:rm
+   Unit_conv1 = 1.0 / GRID%Area    !(stand-1 ---> m-2) !!!<<<<<<<<<<<<TN:add
+   Unit_conv2 = 1.0 / (real(GRID%Area)/real(GRID%N_tot)) !(grass_cell-1 ---> m-2) !!!<<<<<<<<<<<<TN:add
    
    !Grass_avandance(Dived_G,Dived_G)
    !Relative grass avandance for each grass cell
-   x = sum(gmass_leaf(:,:))/ DivedG/ DivedG 
+!   x = sum(gmass_leaf(:,:))/ DivedG/ DivedG  !!!>>>>>>>>>>>>TN:rm
+   x = sum(gmass_leaf(:,:))/ real(GRID%N_tot)  !!!<<<<<<<<<<<<TN:add
    x = max(x , 0.001)                       !x: Average ABG of grass (gDM/grass_cell)
-   do i=1, DivedG
-   do j=1, DivedG
+!   do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+!   do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
+   do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+   do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
       grass_avandance(i,j) = gmass_leaf(i,j) / x
    end do
    end do
@@ -621,8 +648,10 @@ Subroutine fire_regime2 (wind)
    !fire_potential(Dived_G,Dived_G)
    !Potential fire intensity for each grass cell (KJ s-1 m-1)
    !Scheiter and Higgins (2008) with some simplification
-   do i=1, DivedG
-   do j=1, DivedG
+!   do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+!   do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
+   do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+   do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
       
       !fuel_live: living fuel biomass for each grass cell (gDM/m2)
       fuel_live = gmass_leaf(i,j) * Unit_conv2 + &
@@ -649,7 +678,8 @@ Subroutine fire_regime2 (wind)
    
 !_____________ Determine whether fire occurs
    !return when average potential intensity is not sufficient (Wilgen and Scholes, 1997)
-   if ( sum(fire_potential(:,:)) / DivedG / DivedG < 300.0) return 
+!   if ( sum(fire_potential(:,:)) / DivedG / DivedG < 300.0) return  !!!>>>>>>>>>>>>TN:rm
+   if ( sum(fire_potential(:,:)) / real(GRID%N_tot) < 300.0) return  !!!<<<<<<<<<<<<TN:add
    
    !prob_fire: probability of fire occurs in this year (in stand-1 day-1)
    prob_fire = 0.0015 !from aDGVM (when crown coverage is 0%)
@@ -687,9 +717,12 @@ Subroutine fire_regime2 (wind)
    mass_combust= mass_combust+ sum(gmass_available(:,:)) ; gmass_available(:,:)= 0.0
    
    !Grass PFTs -> give minimum stock biomass for recovery
-   x = Min_gmass_stock * ((Max_loc/DivedG)**2) !x: minumum grass stock biomass (gDM/cell)
-   do i=1, DivedG
-   do j=1, DivedG
+!   x = Min_gmass_stock * ((Max_loc/DivedG)**2) !x: minumum grass stock biomass (gDM/cell) !!!>>>>>>>>>>>>TN:rm
+   x = Min_gmass_stock * (real(GRID%Area)/real(GRID%N_tot)) !x: minumum grass stock biomass (gDM/cell) !!!<<<<<<<<<<<<TN:add
+!   do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+!   do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
+   do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+   do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
       !y: shortage of stock biomass (gDM/cell)
       y                = max(0.0, x - gmass_stock(i,j) )
       if (y==0.0) cycle
@@ -721,8 +754,10 @@ Subroutine fire_regime2 (wind)
    if (tree_exist(no)) then
       
       !i, j: x and y location of the mentioned tree (Grass cells coodinate)
-      i = int( DivedG * (bole_x(no) / Max_loc) )
-      j = int( DivedG * (bole_y(no) / Max_loc) )
+!      i = int( DivedG * (bole_x(no) / Max_loc) ) !!!>>>>>>>>>>>>TN:rm
+!      j = int( DivedG * (bole_y(no) / Max_loc) ) !!!>>>>>>>>>>>>TN:rm
+      i = int( GRID%N_x * (bole_x(no) / GRID%Max_x) ) !!!<<<<<<<<<<<<TN:add
+      j = int( GRID%N_y * (bole_y(no) / GRID%Max_y) ) !!!<<<<<<<<<<<<TN:add
       
       !prob_topkill: Probability of tree death due to fire from aDGVM
       x = exp( 4.3 - 5.003*log(height(no)*STEP+1.3) + 0.004408*sqrt(fire_potential(i,j)*1000.0) )
@@ -786,6 +821,9 @@ SUBROUTINE mortality ()
    USE vegi_status_current1
    USE vegi_status_current2
    USE grid_status_current1
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Local parameters (Gap formation parameters from Huth & Ditzer (2000) )
@@ -873,11 +911,13 @@ real    cosine1, cosine2
          
          !dist1: absolute y-axis distance between circle centers (adjusted for mirror world)
          dist1 = crown_y(me)-crown_y(you)
-         dist1 = min( abs(dist1), abs(dist1-Max_loc), abs(dist1+Max_loc) )
+!         dist1 = min( abs(dist1), abs(dist1-Max_loc), abs(dist1+Max_loc) ) !!!>>>>>>>>>>>>TN:rm
+         dist1 = min( abs(dist1), abs(dist1-real(GRID%Max_y)), abs(dist1+real(GRID%Max_y)) ) !!!<<<<<<<<<<<<TN:add
          
          !dist2: absolute x-axis distance between circle centers (adjusted for mirror world)
          dist2 = crown_x(me)-crown_x(you)
-         dist2 = min( abs(dist2), abs(dist2-Max_loc), abs(dist2+Max_loc) )
+!         dist2 = min( abs(dist2), abs(dist2-Max_loc), abs(dist2+Max_loc) ) !!!>>>>>>>>>>>>TN:rm
+         dist2 = min( abs(dist2), abs(dist2-real(GRID%Max_x)), abs(dist2+real(GRID%Max_x)) ) !!!<<<<<<<<<<<<TN:add
          
          !dist: x-y-plane distance between crown and shade center
          dist = sqrt( dist1**2 + dist2**2 )
@@ -1052,15 +1092,28 @@ DO no=1, Max_no
       if ( tree_exist(i) .and. age(i)>1 ) then
          
          !Distance from gap center
-         d1 = (x - (bole_x(i)-real(Max_loc)) )**2 + (y - (bole_y(i)-real(Max_loc)) )**2
-         d2 = (x - (bole_x(i)              ) )**2 + (y - (bole_y(i)-real(Max_loc)) )**2
-         d3 = (x - (bole_x(i)+real(Max_loc)) )**2 + (y - (bole_y(i)-real(Max_loc)) )**2
-         d4 = (x - (bole_x(i)-real(Max_loc)) )**2 + (y - (bole_y(i)              ) )**2
-         d5 = (x - (bole_x(i)              ) )**2 + (y - (bole_y(i)              ) )**2
-         d6 = (x - (bole_x(i)+real(Max_loc)) )**2 + (y - (bole_y(i)              ) )**2
-         d7 = (x - (bole_x(i)-real(Max_loc)) )**2 + (y - (bole_y(i)+real(Max_loc)) )**2
-         d8 = (x - (bole_x(i)              ) )**2 + (y - (bole_y(i)+real(Max_loc)) )**2
-         d9 = (x - (bole_x(i)+real(Max_loc)) )**2 + (y - (bole_y(i)+real(Max_loc)) )**2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:rm
+!         d1 = (x - (bole_x(i)-real(Max_loc)) )**2 + (y - (bole_y(i)-real(Max_loc)) )**2
+!         d2 = (x - (bole_x(i)              ) )**2 + (y - (bole_y(i)-real(Max_loc)) )**2
+!         d3 = (x - (bole_x(i)+real(Max_loc)) )**2 + (y - (bole_y(i)-real(Max_loc)) )**2
+!         d4 = (x - (bole_x(i)-real(Max_loc)) )**2 + (y - (bole_y(i)              ) )**2
+!         d5 = (x - (bole_x(i)              ) )**2 + (y - (bole_y(i)              ) )**2
+!         d6 = (x - (bole_x(i)+real(Max_loc)) )**2 + (y - (bole_y(i)              ) )**2
+!         d7 = (x - (bole_x(i)-real(Max_loc)) )**2 + (y - (bole_y(i)+real(Max_loc)) )**2
+!         d8 = (x - (bole_x(i)              ) )**2 + (y - (bole_y(i)+real(Max_loc)) )**2
+!         d9 = (x - (bole_x(i)+real(Max_loc)) )**2 + (y - (bole_y(i)+real(Max_loc)) )**2
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:rm
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+         d1 = (x - (bole_x(i)-real(GRID%Max_x)) )**2 + (y - (bole_y(i)-real(GRID%Max_y)) )**2
+         d2 = (x - (bole_x(i)                 ) )**2 + (y - (bole_y(i)-real(GRID%Max_y)) )**2
+         d3 = (x - (bole_x(i)+real(GRID%Max_x)) )**2 + (y - (bole_y(i)-real(GRID%Max_y)) )**2
+         d4 = (x - (bole_x(i)-real(GRID%Max_x)) )**2 + (y - (bole_y(i)                 ) )**2
+         d5 = (x - (bole_x(i)                 ) )**2 + (y - (bole_y(i)                 ) )**2
+         d6 = (x - (bole_x(i)+real(GRID%Max_x)) )**2 + (y - (bole_y(i)                 ) )**2
+         d7 = (x - (bole_x(i)-real(GRID%Max_x)) )**2 + (y - (bole_y(i)+real(GRID%Max_y)) )**2
+         d8 = (x - (bole_x(i)                 ) )**2 + (y - (bole_y(i)+real(GRID%Max_y)) )**2
+         d9 = (x - (bole_x(i)+real(GRID%Max_x)) )**2 + (y - (bole_y(i)+real(GRID%Max_y)) )**2
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
          
          dist = min(d1,d2,d3,d4,d5,d6,d7,d8,d9)
          dist = sqrt(dist)

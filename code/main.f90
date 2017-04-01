@@ -68,7 +68,6 @@ SUBROUTINE main_loop ( LAT, LON, GlobalZone, YearMaxClimate, YearMaxCO2, &
     W_wilt       ,& !Wilting point    (m3/m3, 0.0 -> 1.0)
     W_sat        ,& !Saturate point   (m3/m3, 0.0 -> 1.0)
     W_mat           !Matrix potential 
-   
 !_____________ Set Local variables
 
 !Daily mean meteological variables
@@ -92,7 +91,6 @@ SUBROUTINE main_loop ( LAT, LON, GlobalZone, YearMaxClimate, YearMaxCO2, &
 !Initialize variables
    Call init_value (W_fi, tmp_air(:,1), tmp_soil(:,1,:), prec(:,1))
    Call radiation_seasonal_change (LAT)
-   
 !Read spinup files
    Spinup_year  = 0
    if (Flag_spinup_read) then
@@ -102,21 +100,21 @@ SUBROUTINE main_loop ( LAT, LON, GlobalZone, YearMaxClimate, YearMaxCO2, &
    endif
    
 !_____________ Open output files
-   open ( File_no( 1), file = 'output_log.txt'          )
-   open ( File_no( 2), file = 'output.txt'              )
-   open ( File_no( 3), file = 'output_climate.txt'      )
-   open ( File_no( 4), file = 'output_air.txt'          )
-   open ( File_no( 5), file = 'output_radiation.txt'    )
-   open ( File_no( 6), file = 'output_water.txt'        )
-   open ( File_no( 7), file = 'output_grass.txt'        )
-   open ( File_no( 8), file = 'output_lai.txt'          )
-   open ( File_no( 9), file = 'output_cflux.txt'        )
-   open ( File_no(10), file = 'output_netradiation.txt' )
-   open ( File_no(11), file = 'output_wflux.txt'        )
-   open ( File_no(12), file = 'output_ld_vertical.txt'  )
-   open ( File_no(13), file = 'output_annual.txt'       )
-   open ( File_no(14), file = 'output_forest.txt'       )
-   open ( File_no(15), file = 'output_biomass.txt'      )
+   open ( File_no( 1), file = 'output/log.txt'          )
+   open ( File_no( 2), file = 'output/output.txt'       )
+   open ( File_no( 3), file = 'output/climate.txt'      )
+   open ( File_no( 4), file = 'output/air.txt'          )
+   open ( File_no( 5), file = 'output/radiation.txt'    )
+   open ( File_no( 6), file = 'output/water.txt'        )
+   open ( File_no( 7), file = 'output/grass.txt'        )
+   open ( File_no( 8), file = 'output/lai.txt'          )
+   open ( File_no( 9), file = 'output/cflux.txt'        )
+   open ( File_no(10), file = 'output/netradiation.txt' )
+   open ( File_no(11), file = 'output/wflux.txt'        )
+   open ( File_no(12), file = 'output/ld_vertical.txt'  )
+   open ( File_no(13), file = 'output/annual.txt'       )
+   open ( File_no(14), file = 'output/forest.txt'       )
+   open ( File_no(15), file = 'output/biomass.txt'      )
    
 !_____________ Initialize various counters for the daily simulation loop
    doy          = 0
@@ -242,7 +240,7 @@ DO counter = counter_begin, counter_end
    !Calculate variables in relation to atmospheric physics (e.g. Air pressure, Vapor density)
    Call air (tmp_air_Today, humid_Today, ALT)
    
-   Call radiation (LAT, cloud)
+   Call radiation (LAT, cloud_Today)   !!!<<<<<<<<<<<<<<<<<<TN changed: cloud -> cloud_Today
    par_RunningRecord(2:Day_in_Year) = par_RunningRecord(1:Day_in_Year-1)
    par_RunningRecord(1)             = par
    
@@ -268,7 +266,7 @@ DO counter = counter_begin, counter_end
    !Wild fire subroutines
    if     (GlobalZone==1) then
      !African continent
-     Call fire_regime2 (wind)
+     Call fire_regime2 (wind_Today)   !!!<<<<<<<<<<<<<<<<<TN changed: wind -> wind_Today
    else
      !Default
      Call fire_regime (W_fi)
@@ -393,12 +391,12 @@ IF (Flag_output_write) then
    !Daily output (everyday)
    Call output_for_viewer &
    (File_no(2), LAT, LON, ALT, Albedo_soil0, W_fi, W_wilt, W_sat, W_mat, &
-   cloud, prec_Today, humid_Today, wind_Today, tmp_air_Today, sum(tmp_soil_Today(1:5))/5.0 )
+   cloud_Today, prec_Today, humid_Today, wind_Today, tmp_air_Today, sum(tmp_soil_Today(1:5))/5.0 )   !!!<<<<<<<<<<<<<<<<<<TN changed: cloud -> cloud_Today
    
    !Daily output (on each specifyed year)
    Call output_climate &
    (File_no(3), &
-   cloud, prec_Today, humid_Today, wind_Today, tmp_air_Today, sum(tmp_soil_Today(1:5))/5.0)
+   cloud_Today, prec_Today, humid_Today, wind_Today, tmp_air_Today, sum(tmp_soil_Today(1:5))/5.0)   !!!<<<<<<<<<<<<<<<<<<TN changed: cloud -> cloud_Today
    Call output_air          (File_no(4))
    Call output_radiation    (File_no(5))
    Call output_water        (File_no(6), W_fi, W_wilt, W_sat)

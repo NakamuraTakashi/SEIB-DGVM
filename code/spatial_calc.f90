@@ -8,6 +8,9 @@ SUBROUTINE diffused_radiation ()
    USE data_structure
    USE vegi_status_current1
    USE grid_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Local variables
@@ -28,7 +31,8 @@ SUBROUTINE diffused_radiation ()
          lai_each(pft(no), i) = lai_each(pft(no), i) + x
       end do
    END DO
-   lai_each(:,:) = lai_each(:,:) / real(Max_loc) / real(Max_loc)
+!   lai_each(:,:) = lai_each(:,:) / real(Max_loc) / real(Max_loc)  !!!>>>>>>>>>>>>TN:rm
+   lai_each(:,:) = lai_each(:,:) / real(GRID%Area)                 !!!<<<<<<<<<<<<TN:add
    
 !_____________ Light attenuation coefficent for each forest layer
    DO i = 1, Max_hgt
@@ -60,6 +64,9 @@ SUBROUTINE crown_coverage ()
    USE data_structure
    USE vegi_status_current1
    USE grid_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Local variables
@@ -71,8 +78,10 @@ SUBROUTINE crown_coverage ()
    
 !_____________ Main(Method1)
    count = 0
-   Do i=1, Max_loc
-   Do j=1, Max_loc
+!   Do i=1, Max_loc    !!!>>>>>>>>>>>>TN:rm
+!   Do j=1, Max_loc    !!!>>>>>>>>>>>>TN:rm
+   Do i=1, GRID%Max_x  !!!<<<<<<<<<<<<TN:add
+   Do j=1, GRID%Max_y  !!!<<<<<<<<<<<<TN:add
       flag_coverage = .false.
       
       do no = 1, Max_no
@@ -83,16 +92,28 @@ SUBROUTINE crown_coverage ()
          !d1~9: Square distance between centers for each "mirror location"
          x = crown_x(no) - (real(i)-0.5)
          y = crown_y(no) - (real(j)-0.5)
-         
-         d1 = (x - real(Max_loc))**2 + (y - real(Max_loc))**2
-         d2 = (x                )**2 + (y - real(Max_loc))**2
-         d3 = (x + real(Max_loc))**2 + (y - real(Max_loc))**2
-         d4 = (x - real(Max_loc))**2 + (y                )**2
-         d5 = (x                )**2 + (y                )**2
-         d6 = (x + real(Max_loc))**2 + (y                )**2
-         d7 = (x - real(Max_loc))**2 + (y + real(Max_loc))**2
-         d8 = (x                )**2 + (y + real(Max_loc))**2
-         d9 = (x + real(Max_loc))**2 + (y + real(Max_loc))**2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:rm
+!         d1 = (x - real(Max_loc))**2 + (y - real(Max_loc))**2
+!         d2 = (x                )**2 + (y - real(Max_loc))**2
+!         d3 = (x + real(Max_loc))**2 + (y - real(Max_loc))**2
+!         d4 = (x - real(Max_loc))**2 + (y                )**2
+!         d5 = (x                )**2 + (y                )**2
+!         d6 = (x + real(Max_loc))**2 + (y                )**2
+!         d7 = (x - real(Max_loc))**2 + (y + real(Max_loc))**2
+!         d8 = (x                )**2 + (y + real(Max_loc))**2
+!         d9 = (x + real(Max_loc))**2 + (y + real(Max_loc))**2
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:rm
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+         d1 = (x - real(GRID%Max_x))**2 + (y - real(GRID%Max_y))**2
+         d2 = (x                   )**2 + (y - real(GRID%Max_y))**2
+         d3 = (x + real(GRID%Max_x))**2 + (y - real(GRID%Max_y))**2
+         d4 = (x - real(GRID%Max_x))**2 + (y                   )**2
+         d5 = (x                   )**2 + (y                   )**2
+         d6 = (x + real(GRID%Max_x))**2 + (y                   )**2
+         d7 = (x - real(GRID%Max_x))**2 + (y + real(GRID%Max_y))**2
+         d8 = (x                   )**2 + (y + real(GRID%Max_y))**2
+         d9 = (x + real(GRID%Max_x))**2 + (y + real(GRID%Max_y))**2
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
          
          !proxy: distance between grid-center and crown-center
          proxy = min(d1,d2,d3,d4,d5,d6,d7,d8,d9)
@@ -109,7 +130,8 @@ SUBROUTINE crown_coverage ()
    End Do
    End Do
    
-   frac_crown_coverage = real(count) / real(Max_loc*Max_loc)
+!   frac_crown_coverage = real(count) / real(Max_loc*Max_loc)   !!!>>>>>>>>>>>>TN:rm
+   frac_crown_coverage = real(count) / real(GRID%Area)          !!!<<<<<<<<<<<<TN:add
    
 !_____________ Main (Method2)
 !   x = 0.0
@@ -137,6 +159,9 @@ SUBROUTINE floor_radiation ()
    USE data_structure
    USE vegi_status_current1
    USE grid_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Local variables
@@ -145,7 +170,8 @@ SUBROUTINE floor_radiation ()
    integer count, loop_no, loop_no_max
    integer,dimension(Max_no):: tree_no
    integer no, i, j
-   logical,dimension(Dived,Dived)::flag
+!   logical,dimension(Dived,Dived)::flag !!!>>>>>>>>>>>>TN:rm
+   logical,dimension(GRID%N_x, GRID%N_y)::flag !!!<<<<<<<<<<<<TN:add
    
 !_____________ Initialize return variables
    par_grass_rel(:,:) = 1.0
@@ -164,35 +190,43 @@ SUBROUTINE floor_radiation ()
    IF (loop_no_max == 0) return
    
 !_____________ par_grass_rel
-   cell_area   = real(Max_loc**2) / real(DivedG**2) !Area for each grass cell (m2)
-   cell_length = real(Max_loc   ) / real(DivedG   ) !Side length for each grass cell (m)
+!   cell_area   = real(Max_loc**2) / real(DivedG**2) !Area for each grass cell (m2)        !!!>>>>>>>>>>>>TN:rm
+!   cell_length = real(Max_loc   ) / real(DivedG   ) !Side length for each grass cell (m)  !!!>>>>>>>>>>>>TN:rm
+   cell_area   = 0.25 !Area for each grass cell (m2)         !!!<<<<<<<<<<<<TN:add
+   cell_length = 0.5  !Side length for each grass cell (m)   !!!<<<<<<<<<<<<TN:add
    
    DO loop_no = 1, loop_no_max
       no        = tree_no(loop_no)
       count     = 0
       flag(:,:) = .false.
       
-      do i=1, DivedG
+!      do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+      do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
          !x: location of the center of this grid cells on x-axis
          x = (real(i)-0.5)*cell_length
          
          !dn: distances between centers of crown and grid cell on x-axis
          d1 = crown_x(no) -  x
-         d2 = crown_x(no) - (x - real(Max_loc))
-         d3 = crown_x(no) - (x + real(Max_loc))
+!         d2 = crown_x(no) - (x - real(Max_loc))!!!>>>>>>>>>>>>TN:rm
+!         d3 = crown_x(no) - (x + real(Max_loc))!!!>>>>>>>>>>>>TN:rm
+         d2 = crown_x(no) - (x - real(GRID%Max_x))!!!<<<<<<<<<<<<TN:add
+         d3 = crown_x(no) - (x + real(GRID%Max_x))!!!<<<<<<<<<<<<TN:add
          
          !dist_x: square of minimum distance between centers of crown and grid cell on x-axis
          dist_x = min(d1**2, d2**2, d3**2)
          
          if ( 0.5*crown_diameter(no) + 0.5*cell_length < sqrt(dist_x) ) cycle
-         do j=1, DivedG
+!         do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
+         do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
             !y: location of the center of this grid cells on j-axis
             y = (real(j)-0.5)*cell_length
             
             !dn: distances between centers of crown and grid cell on y-axis
             d1 = crown_y(no) -  y
-            d2 = crown_y(no) - (y - real(Max_loc))
-            d3 = crown_y(no) - (y + real(Max_loc))
+!            d2 = crown_y(no) - (y - real(Max_loc))!!!>>>>>>>>>>>>TN:rm
+!            d3 = crown_y(no) - (y + real(Max_loc))!!!>>>>>>>>>>>>TN:rm
+            d2 = crown_y(no) - (y - real(GRID%Max_y))!!!<<<<<<<<<<<<TN:add
+            d3 = crown_y(no) - (y + real(GRID%Max_y))!!!<<<<<<<<<<<<TN:add
             
             !dist_y: square of minimum distance between centers of crown and grid cell on x-axis
             dist_y = min(d1**2, d2**2, d3**2)
@@ -210,8 +244,10 @@ SUBROUTINE floor_radiation ()
       if (count==0) cycle
       
       frac_intercepted = exp( -1.0 * EK0(pft(no)) * (la(no)/real(count)/cell_area) )
-      do i=1, DivedG
-      do j=1, DivedG
+!      do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+!      do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
+      do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+      do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
          if (.not. flag(i,j)) cycle
          par_grass_rel(i,j) = par_grass_rel(i,j) * frac_intercepted
       end do
@@ -222,45 +258,63 @@ SUBROUTINE floor_radiation ()
 !_____________ Need further computation?
    !When grid layouts of grass cell and establishment patch cell are identical,
    !no need for detailed computation
-   IF (Dived==DivedG) then
-      do i=1, Dived
-      do j=i, Dived
-         par_floor_rel(i,j) = par_grass_rel(i,j)
-      enddo
-      enddo
-      return
-   ENDIF
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:rm
+!   IF (Dived==DivedG) then
+!      do i=1, Dived
+!      do j=i, Dived
+!         par_floor_rel(i,j) = par_grass_rel(i,j)
+!      enddo
+!      enddo
+!      return
+!   ENDIF
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:rm
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+    do i=1, GRID%N_x
+    do j=i, GRID%N_y
+       par_floor_rel(i,j) = par_grass_rel(i,j)
+    enddo
+    enddo
+    return
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    
 !_____________ par_floor_rel
-   cell_area   = real(Max_loc**2) / real(Dived**2) !Area for each establishment cell (m2)
-   cell_length = real(Max_loc   ) / real(Dived   ) !Side length for each establishment cell (m)
+!   cell_area   = real(Max_loc**2) / real(Dived**2) !Area for each establishment cell (m2)!!!>>>>>>>>>>>>TN:rm
+!   cell_length = real(Max_loc   ) / real(Dived   ) !Side length for each establishment cell (m)!!!>>>>>>>>>>>>TN:rm
+   cell_area   = 0.25 !Area for each establishment cell (m2)!!!<<<<<<<<<<<<TN:add
+   cell_length = 0.5  !Side length for each establishment cell (m)!!!<<<<<<<<<<<<TN:add
    
    DO loop_no = 1, loop_no_max
       no = tree_no(loop_no)
       count = 0
       flag(:,:) = .false.
       
-      do i=1, Dived
+!      do i=1, Dived !!!>>>>>>>>>>>>TN:rm
+      do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
          !x: location of the center of this grid cells on x-axis
          x = (real(i)-0.5)*cell_length
          
          !dn: distances between centers of crown and grid cell on x-axis
          d1 = crown_x(no) -  x
-         d2 = crown_x(no) - (x - real(Max_loc))
-         d3 = crown_x(no) - (x + real(Max_loc))
+!         d2 = crown_x(no) - (x - real(Max_loc))!!!>>>>>>>>>>>>TN:rm
+!         d3 = crown_x(no) - (x + real(Max_loc))!!!>>>>>>>>>>>>TN:rm
+         d2 = crown_x(no) - (x - real(GRID%Max_x))!!!<<<<<<<<<<<<TN:add
+         d3 = crown_x(no) - (x + real(GRID%Max_x))!!!<<<<<<<<<<<<TN:add
          
          !dist_x: square of minimum distance between centers of crown and grid cell on x-axis
          dist_x = min(d1**2, d2**2, d3**2)
          
          if ( 0.5*crown_diameter(no) + 0.5*cell_length < sqrt(dist_x) ) cycle
-         do j=1, Dived
+!         do j=1, Dived !!!>>>>>>>>>>>>TN:rm
+         do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
             !y: location of the center of this grid cells on j-axis
             y = (real(j)-0.5)*cell_length
             
             !dn: distances between centers of crown and grid cell on y-axis
             d1 = crown_y(no) -  y
-            d2 = crown_y(no) - (y - real(Max_loc))
-            d3 = crown_y(no) - (y + real(Max_loc))
+!            d2 = crown_y(no) - (y - real(Max_loc))!!!>>>>>>>>>>>>TN:rm
+!            d3 = crown_y(no) - (y + real(Max_loc))!!!>>>>>>>>>>>>TN:rm
+            d2 = crown_y(no) - (y - real(GRID%Max_y))!!!<<<<<<<<<<<<TN:add
+            d3 = crown_y(no) - (y + real(GRID%Max_y))!!!<<<<<<<<<<<<TN:add
             
             !dist_y: square of minimum distance between centers of crown and grid cell on x-axis
             dist_y = min(d1**2, d2**2, d3**2)
@@ -278,8 +332,10 @@ SUBROUTINE floor_radiation ()
       if (count==0) cycle
       
       frac_intercepted = exp( -1.0 * EK0(pft(no)) * (la(no)/real(count)/cell_area) )
-      do i=1, Dived
-      do j=1, Dived
+!      do i=1, Dived !!!>>>>>>>>>>>>TN:rm
+!      do j=1, Dived !!!>>>>>>>>>>>>TN:rm
+      do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+      do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
          if (.not. flag(i,j)) cycle
          par_floor_rel(i,j) = par_floor_rel(i,j) * frac_intercepted
       end do
@@ -308,6 +364,9 @@ SUBROUTINE direct_radiation ()
    USE time_counter
    USE vegi_status_current1
    USE grid_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !_____________ Define local parameters
@@ -423,7 +482,8 @@ SUBROUTINE direct_radiation ()
          
          !dist: x-axis distance between shade and current disk
          dist = Dx * real(i)
-         dist = min(dist, abs(dist-Max_loc))
+!         dist = min(dist, abs(dist-Max_loc))!!!>>>>>>>>>>>>TN:rm
+         dist = min(dist, abs(dist-real(GRID%Max_x)))!!!<<<<<<<<<<<<TN:add
          
          !sumup fraction of overlap area
          if ( dist < 2.0*r ) then
@@ -455,8 +515,10 @@ SUBROUTINE direct_radiation ()
    !Cancel no-interferebce trees 2
       !check whether crowns of 'me' and 'you' share some range of y axis
       a1 = abs( crown_y(me) - crown_y(you)           )
-      a2 = abs( crown_y(me) - crown_y(you) + Max_loc )
-      a3 = abs( crown_y(me) - crown_y(you) - Max_loc )
+!      a2 = abs( crown_y(me) - crown_y(you) + Max_loc )!!!>>>>>>>>>>>>TN:rm
+!      a3 = abs( crown_y(me) - crown_y(you) - Max_loc )!!!>>>>>>>>>>>>TN:rm
+      a2 = abs( crown_y(me) - crown_y(you) + real(GRID%Max_y) )!!!<<<<<<<<<<<<TN:add
+      a3 = abs( crown_y(me) - crown_y(you) - real(GRID%Max_y) )!!!<<<<<<<<<<<<TN:add
       if (min(a1,a2,a3) > (crown_diameter(me) + crown_diameter(you))/2 ) cycle
       
    !Cancel no-interferebce trees 3
@@ -469,12 +531,16 @@ SUBROUTINE direct_radiation ()
       
       !y_shift: y-axis shift length of crown 'you' for adjusting repeat world
       a1 = abs( y2_me - (y2_you        ) )
-      a2 = abs( y2_me - (y2_you+Max_loc) )
-      a3 = abs( y2_me - (y2_you-Max_loc) )
+!      a2 = abs( y2_me - (y2_you+Max_loc) )!!!>>>>>>>>>>>>TN:rm
+!      a3 = abs( y2_me - (y2_you-Max_loc) )!!!>>>>>>>>>>>>TN:rm
+      a2 = abs( y2_me - (y2_you+real(GRID%Max_y)) )!!!<<<<<<<<<<<<TN:add
+      a3 = abs( y2_me - (y2_you-real(GRID%Max_y)) )!!!<<<<<<<<<<<<TN:add
       
       y_shift = 0.0
-      if ( a2<=a1 .and. a2<=a3 ) y_shift =        real(Max_loc)
-      if ( a3<=a1 .and. a3<=a2 ) y_shift = -1.0 * real(Max_loc)
+!      if ( a2<=a1 .and. a2<=a3 ) y_shift =        real(Max_loc)!!!>>>>>>>>>>>>TN:rm
+!      if ( a3<=a1 .and. a3<=a2 ) y_shift = -1.0 * real(Max_loc)!!!>>>>>>>>>>>>TN:rm
+      if ( a2<=a1 .and. a2<=a3 ) y_shift =        real(GRID%Max_y)!!!<<<<<<<<<<<<TN:add
+      if ( a3<=a1 .and. a3<=a2 ) y_shift = -1.0 * real(GRID%Max_y)!!!<<<<<<<<<<<<TN:add
       
       !y1: larger  y-location of interfering range of crowns
       !y2: smaller y-location of interfering range of crowns
@@ -509,12 +575,14 @@ SUBROUTINE direct_radiation ()
          c1 = x1_me + Dx * real( height(you) - max(bole(me)+1, Hgt_thres+1) )
          c2 = x2_me + Dx * real( max( height(me) , bole(you)+1 ) - height(me) )
          if ( c1>x2_you         .and. c2<x1_you         ) flag= 0
-         if ( c1>x2_you+Max_loc .and. c2<x1_you+Max_loc ) flag= 0
+!         if ( c1>x2_you+Max_loc .and. c2<x1_you+Max_loc ) flag= 0!!!>>>>>>>>>>>>TN:rm
+         if ( c1>x2_you+real(GRID%Max_x) .and. c2<x1_you+real(GRID%Max_x) ) flag= 0!!!<<<<<<<<<<<<TN:add
       else
          c1 = x2_me - Dx * real( height(you) - max(bole(me)+1, Hgt_thres+1) )
          c2 = x1_me - Dx * real( max( height(me) , bole(you)+1 ) - height(me) )
          if ( c1<x1_you         .and. c2>x2_you         ) flag= 0
-         if ( c1<x1_you-Max_loc .and. c2>x2_you-Max_loc ) flag= 0
+!         if ( c1<x1_you-Max_loc .and. c2>x2_you-Max_loc ) flag= 0!!!>>>>>>>>>>>>TN:rm
+         if ( c1<x1_you-real(GRID%Max_x) .and. c2>x2_you-real(GRID%Max_x) ) flag= 0!!!<<<<<<<<<<<<TN:add
       endif
       if (flag == 1) cycle
       
@@ -539,7 +607,8 @@ DO loop = 1, loop_no3 !for each combination of individuals
    
    !dist_y: absolute y-axis distance between circle centers (adjusted for mirror world)
    dist_y = crown_y(me)-crown_y(you)
-   dist_y = min( abs(dist_y), abs(dist_y-Max_loc), abs(dist_y+Max_loc) )
+!   dist_y = min( abs(dist_y), abs(dist_y-Max_loc), abs(dist_y+Max_loc) )!!!>>>>>>>>>>>>TN:rm
+   dist_y = min( abs(dist_y), abs(dist_y-real(GRID%Max_y)), abs(dist_y+real(GRID%Max_y)) )!!!<<<<<<<<<<<<TN:add
    
    !Compute fraction of shading from above crown disk
    do i = max(1,bole(you)+1-height(me)) , height(you) - max(bole(me)+1,Hgt_thres+1)
@@ -551,7 +620,8 @@ DO loop = 1, loop_no3 !for each combination of individuals
       else
          dist_x = crown_x(me) - (crown_x(you)+Dx*real(i))
       endif
-      dist_x = min( abs(dist_x), abs(dist_x-Max_loc), abs(dist_x+Max_loc) )
+!      dist_x = min( abs(dist_x), abs(dist_x-Max_loc), abs(dist_x+Max_loc) )!!!>>>>>>>>>>>>TN:rm
+      dist_x = min( abs(dist_x), abs(dist_x-real(GRID%Max_x)), abs(dist_x+real(GRID%Max_x)) )!!!<<<<<<<<<<<<TN:add
       
       !dist: x-y-plane distance between crown and shade center
       dist = sqrt(dist_x**2 + dist_y**2)
@@ -605,6 +675,9 @@ SUBROUTINE ground_vacant ()
    USE data_structure
    USE vegi_status_current1
    USE vegi_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Local parameters
@@ -619,36 +692,55 @@ SUBROUTINE ground_vacant ()
    
 !_____________ Main part
 !Reset output variables
-   patch_vacant(:,:) = .true.
+!   patch_vacant(:,:) = .true.!!!>>>>>>>>>>>>TN:rm
+   patch_vacant(:,:) = GRID%mask(:,:) !!!<<<<<<<<<<<<TN:add
    
 !Calculate safe-site in relation to proximity of previous trees
 Do no=1, Max_no
 if ( .not. tree_exist(no)   ) cycle
    
    !two trees cannot exist at the same establishment location
-   x = real(Dived)/real(Max_loc)
+!   x = real(Dived)/real(Max_loc)!!!>>>>>>>>>>>>TN:rm
+   x = 2.0 !!!<<<<<<<<<<<<TN:add
    patch_vacant( int(bole_x(no)*x)+1 , int(bole_y(no)*x)+1 ) = .false.
    
 if ( bole(no) >= Height_new ) cycle
    
    !examine for proximate area for each grid of establishment coodinate
-   do i = 1, Dived
-   do j = 1, Dived
+!   do i = 1, Dived !!!>>>>>>>>>>>>TN:rm
+!   do j = 1, Dived !!!>>>>>>>>>>>>TN:rm
+   do i = 1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+   do j = 1, GRID%N_y !!!<<<<<<<<<<<<TN:add
       
       !location of this tree under nomal coodinate
-      x = real(i) * real(Max_loc) / real(Dived) - 0.5 !x location (m)
-      y = real(j) * real(Max_loc) / real(Dived) - 0.5 !y location (m)
+!      x = real(i) * real(Max_loc) / real(Dived) - 0.5 !x location (m)!!!>>>>>>>>>>>>TN:rm
+!      y = real(j) * real(Max_loc) / real(Dived) - 0.5 !y location (m)!!!>>>>>>>>>>>>TN:rm
+      x = (real(i) - 0.5) * 0.5  !x location (m)!!!<<<<<<<<<<<<TN:add?????bug?????要確認
+      y = (real(j) - 0.5) * 0.5  !y location (m)!!!<<<<<<<<<<<<TN:add?????bug?????要確認
       
       !calculate distance between my place and target place
-      d1 = (crown_x(no)-Max_loc-x)**2 + (crown_y(no)-Max_loc-y)**2
-      d2 = (crown_x(no)        -x)**2 + (crown_y(no)-Max_loc-y)**2
-      d3 = (crown_x(no)+Max_loc-x)**2 + (crown_y(no)-Max_loc-y)**2
-      d4 = (crown_x(no)-Max_loc-x)**2 + (crown_y(no)        -y)**2
-      d5 = (crown_x(no)        -x)**2 + (crown_y(no)        -y)**2
-      d6 = (crown_x(no)+Max_loc-x)**2 + (crown_y(no)        -y)**2
-      d7 = (crown_x(no)-Max_loc-x)**2 + (crown_y(no)+Max_loc-y)**2
-      d8 = (crown_x(no)        -x)**2 + (crown_y(no)+Max_loc-y)**2
-      d9 = (crown_x(no)+Max_loc-x)**2 + (crown_y(no)+Max_loc-y)**2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:rm
+!      d1 = (crown_x(no)-Max_loc-x)**2 + (crown_y(no)-Max_loc-y)**2
+!      d2 = (crown_x(no)        -x)**2 + (crown_y(no)-Max_loc-y)**2
+!      d3 = (crown_x(no)+Max_loc-x)**2 + (crown_y(no)-Max_loc-y)**2
+!      d4 = (crown_x(no)-Max_loc-x)**2 + (crown_y(no)        -y)**2
+!      d5 = (crown_x(no)        -x)**2 + (crown_y(no)        -y)**2
+!      d6 = (crown_x(no)+Max_loc-x)**2 + (crown_y(no)        -y)**2
+!      d7 = (crown_x(no)-Max_loc-x)**2 + (crown_y(no)+Max_loc-y)**2
+!      d8 = (crown_x(no)        -x)**2 + (crown_y(no)+Max_loc-y)**2
+!      d9 = (crown_x(no)+Max_loc-x)**2 + (crown_y(no)+Max_loc-y)**2
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:rm
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+      d1 = (crown_x(no)-real(GRID%Max_x)-x)**2 + (crown_y(no)-real(GRID%Max_y)-y)**2
+      d2 = (crown_x(no)                 -x)**2 + (crown_y(no)-real(GRID%Max_y)-y)**2
+      d3 = (crown_x(no)+real(GRID%Max_x)-x)**2 + (crown_y(no)-real(GRID%Max_y)-y)**2
+      d4 = (crown_x(no)-real(GRID%Max_x)-x)**2 + (crown_y(no)                 -y)**2
+      d5 = (crown_x(no)                 -x)**2 + (crown_y(no)                 -y)**2
+      d6 = (crown_x(no)+real(GRID%Max_x)-x)**2 + (crown_y(no)                 -y)**2
+      d7 = (crown_x(no)-real(GRID%Max_x)-x)**2 + (crown_y(no)+real(GRID%Max_y)-y)**2
+      d8 = (crown_x(no)                 -x)**2 + (crown_y(no)+real(GRID%Max_y)-y)**2
+      d9 = (crown_x(no)+real(GRID%Max_x)-x)**2 + (crown_y(no)+real(GRID%Max_y)-y)**2
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
       
       distance = min(d1,d2,d3,d4,d5,d6,d7,d8,d9)
       distance = sqrt(distance)
@@ -675,6 +767,9 @@ SUBROUTINE spatial_limitation ()
 !Namespace
    USE data_structure
    USE vegi_status_current1
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Local parameters
@@ -703,10 +798,12 @@ if ( .not. phenology(pft(me)) ) cycle !case dormant phase
       
       !Obtain most proximate distance among 9 duplicated-target-trees
       x = crown_x(you) - crown_x(me) !difference in x-location
-      x = min(x**2, (x+real(Max_loc))**2 , (x-real(Max_loc))**2 )
+!      x = min(x**2, (x+real(Max_loc))**2 , (x-real(Max_loc))**2 )!!!>>>>>>>>>>>>TN:rm
+      x = min(x**2, (x+real(GRID%Max_x))**2 , (x-real(GRID%Max_x))**2 )!!!<<<<<<<<<<<<TN:add
       
       y = crown_y(you) - crown_y(me) !difference in x-location
-      y = min(y**2, (y+real(Max_loc))**2 , (y-real(Max_loc))**2 )
+!      y = min(y**2, (y+real(Max_loc))**2 , (y-real(Max_loc))**2 )!!!>>>>>>>>>>>>TN:rm
+      y = min(y**2, (y+real(GRID%Max_y))**2 , (y-real(GRID%Max_y))**2 )!!!<<<<<<<<<<<<TN:add
       
       proxy = sqrt(x+y)
       
@@ -741,6 +838,9 @@ SUBROUTINE crown_shake ()
 !Namespace
    USE data_structure
    USE vegi_status_current1
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Local parameters
@@ -841,15 +941,28 @@ IF ( .not. tree_exist(me) )  cycle
          
          !dx, dy: deviations of crown centers on x and y axis, respectively
          select case (i)
-           case(1); dx = a1 - Max_loc ; dy = a2 - Max_loc
-           case(2); dx = a1           ; dy = a2 - Max_loc
-           case(3); dx = a1 + Max_loc ; dy = a2 - Max_loc
-           case(4); dx = a1 - Max_loc ; dy = a2          
-           case(5); dx = a1           ; dy = a2          
-           case(6); dx = a1 + Max_loc ; dy = a2          
-           case(7); dx = a1 - Max_loc ; dy = a2 + Max_loc
-           case(8); dx = a1           ; dy = a2 + Max_loc
-           case(9); dx = a1 + Max_loc ; dy = a2 + Max_loc
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:rm
+!           case(1); dx = a1 - Max_loc ; dy = a2 - Max_loc
+!           case(2); dx = a1           ; dy = a2 - Max_loc
+!           case(3); dx = a1 + Max_loc ; dy = a2 - Max_loc
+!           case(4); dx = a1 - Max_loc ; dy = a2          
+!           case(5); dx = a1           ; dy = a2          
+!           case(6); dx = a1 + Max_loc ; dy = a2          
+!           case(7); dx = a1 - Max_loc ; dy = a2 + Max_loc
+!           case(8); dx = a1           ; dy = a2 + Max_loc
+!           case(9); dx = a1 + Max_loc ; dy = a2 + Max_loc
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:rm
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+           case(1); dx = a1 - real(GRID%Max_x) ; dy = a2 - real(GRID%Max_y)
+           case(2); dx = a1                    ; dy = a2 - real(GRID%Max_y)
+           case(3); dx = a1 + real(GRID%Max_x) ; dy = a2 - real(GRID%Max_y)
+           case(4); dx = a1 - real(GRID%Max_x) ; dy = a2                   
+           case(5); dx = a1                    ; dy = a2                   
+           case(6); dx = a1 + real(GRID%Max_x) ; dy = a2                   
+           case(7); dx = a1 - real(GRID%Max_x) ; dy = a2 + real(GRID%Max_y)
+           case(8); dx = a1                    ; dy = a2 + real(GRID%Max_y)
+           case(9); dx = a1 + real(GRID%Max_x) ; dy = a2 + real(GRID%Max_y)
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
          end select
          
          !list up for all interference crown
@@ -928,11 +1041,13 @@ IF ( .not. tree_exist(me) )  cycle
       !execute crown movement
       crown_x(me) = crown_x(me) + distance * sin(angle)
       crown_x(me) = max(crown_x(me),           0.0)
-      crown_x(me) = min(crown_x(me), real(Max_loc))
+!      crown_x(me) = min(crown_x(me), real(Max_loc))!!!>>>>>>>>>>>>TN:rm
+      crown_x(me) = min(crown_x(me), real(GRID%Max_x))!!!<<<<<<<<<<<<TN:add
       
       crown_y(me) = crown_y(me) + distance * cos(angle)
       crown_y(me) = max(crown_y(me),           0.0)
-      crown_y(me) = min(crown_y(me), real(Max_loc))
+!      crown_y(me) = min(crown_y(me), real(Max_loc))!!!>>>>>>>>>>>>TN:rm
+      crown_y(me) = min(crown_y(me), real(GRID%Max_y))!!!<<<<<<<<<<<<TN:add
       
    ENDIF
    

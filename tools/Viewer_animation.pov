@@ -13,7 +13,7 @@
 #include "metals.inc"  
 
         //Open data file
-#fopen data_file "output_forest.txt" read
+#fopen data_file "../code/output/forest.txt" read
 
 //[For separate files]
 //#fopen data_file concat(str(int((Flame-1)*clock+1),1,0),".txt") read
@@ -30,7 +30,8 @@
 //camera      { location <15,60,65> look_at <15,-10,0> sky<0,0,1> angle 60 } 
 //camera      { location <15,55,30> look_at <15,0,0> sky<0,0,1> angle 60 } 
 //camera      { location <15,80,40> look_at <15,-50,0> sky<0,0,1> angle 60 }
-camera      { location <50,140,70> look_at <50,50,0> sky<0,0,1> angle 60 } 
+//camera      { location <50,140,70> look_at <50,50,0> sky<0,0,1> angle 60 } 
+camera      { location <15,800,40> look_at <15,-25,0> sky<0,0,1> angle 60 } 
 
 // [4]UPVIEW
 //camera      { location <0,0,1> look_at <50,60,15> sky<0,0,1> angle 60 }
@@ -49,7 +50,8 @@ light_source{ <50,-60,100> color rgb 2.3 shadowless}
 
 global_settings { ambient_light color rgb 1}
 background  {color Silver }
-object      {polygon{4,<0,0>,<100,0>,<100,100>,<0,100> 
+//object      {polygon{4,<0,0>,<30,0>,<30,30>,<0,30> 
+object      {polygon{4,<0,0>,<724,0>,<724,644>,<0,644> 
                     texture{ T_Silver_1D finish{reflection 0.05} }
                     }
             }
@@ -121,21 +123,21 @@ object      {polygon{4,<0,0>,<100,0>,<100,100>,<0,100>
         object {cylinder { <crown_x, crown_y, bole_h>, <crown_x, crown_y, bole_h+foliage_h>, foliage_d }
 	     #switch(pft)
 	        #case(1) //Tropical broad-leaved evergreen (1)
-                        texture {T_Copper_4A}
+                    texture {T_Copper_4A}
 	                finish{diffuse 1.0 crand 0.0 phong 1.0 reflection 0.1} 
 	                #break
-//	        #case(2) //Tropical broad-leaved evergreen (2)
-//                        texture {T_Grnt23}
-//                        finish{diffuse 0.5 crand 0.0 phong 1.0 reflection 0.0} 
-//	                #break
-//	        #case(3) //Tropical broad-leaved evergreen (3)
-//	                texture {Yellow_Pine}
-//	                finish{diffuse 0.5 crand 0.0 phong 1.0 reflection 0.0} 
-//	                #break 
-//	        #case(4) //Tropical broad-leaved evergreen (4)
-//	                texture {pigment { Red_Marble} }
-//                        finish{diffuse 0.5 crand 0.0 phong 1.0 reflection 0.0} 
-//	                #break
+  	        #case(2) //Tropical broad-leaved evergreen (2)
+                    texture {T_Grnt23}
+                    finish{diffuse 0.5 crand 0.0 phong 1.0 reflection 0.0} 
+  	                #break
+  	        #case(3) //Tropical broad-leaved evergreen (3)
+  	                texture {Yellow_Pine}
+  	                finish{diffuse 0.5 crand 0.0 phong 1.0 reflection 0.0} 
+  	                #break 
+  	        #case(4) //Tropical broad-leaved evergreen (4)
+  	                texture {pigment { Red_Marble} }
+                    finish{diffuse 0.5 crand 0.0 phong 1.0 reflection 0.0} 
+  	                #break
 	        #case(4) //Tropical broad-leaved raingreen
 	                texture {T_Ruby_Glass}
 	                finish {diffuse 0.5 crand 0.0 phong 1.0 reflection 0.0}

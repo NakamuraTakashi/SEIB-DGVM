@@ -559,6 +559,9 @@ SUBROUTINE ir_index ()
    USE vegi_status_current1
    USE vegi_status_current2
    USE grid_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Local variables
@@ -581,8 +584,10 @@ IF ( par > 1.0 ) then
          endif
       endif
    enddo
-   x = x / Max_loc / Max_loc
-   y = y / Max_loc / Max_loc
+!   x = x / Max_loc / Max_loc !!!>>>>>>>>>>>>TN:rm
+!   y = y / Max_loc / Max_loc !!!>>>>>>>>>>>>TN:rm
+   x = x / real(GRID%Area) !!!<<<<<<<<<<<<TN:add
+   y = y / real(GRID%Area) !!!<<<<<<<<<<<<TN:add
    
    ir_tree = (par_direct/par)*exp(-1.0*x) + (par_diffuse/par)*exp(-1.0*y)
    ir_tree = min(1.0, max(0.0, ir_tree) )
@@ -594,7 +599,8 @@ IF ( par > 1.0 ) then
       p=C4g_no
    endif
    
-   x = sum(lai_grass(:,:)) / DivedG / DivedG
+!   x = sum(lai_grass(:,:)) / DivedG / DivedG !!!>>>>>>>>>>>>TN:rm
+   x = sum(lai_grass(:,:)) / real(GRID%N_tot) !!!<<<<<<<<<<<<TN:add
    
    ir_grass = (par_direct  / par) * exp(-1.0 * x *  eK(p)) + &
               (par_diffuse / par) * exp(-1.0 * x * EK0(p))    

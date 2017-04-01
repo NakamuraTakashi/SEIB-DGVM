@@ -11,6 +11,9 @@ SUBROUTINE stat_climate (prec, tmp_air, tmp_soil)
    USE vegi_status_current2
    USE grid_status_current1
    USE grid_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Augments
@@ -68,8 +71,10 @@ SUBROUTINE stat_climate (prec, tmp_air, tmp_soil)
       sum_par_floor(:,:) = 0.0
    endif
    
-   do i=1, Dived
-   do j=1, Dived
+!   do i=1, Dived !!!>>>>>>>>>>>>TN:rm
+!   do j=1, Dived !!!>>>>>>>>>>>>TN:rm
+   do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+   do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
       sum_par_floor(i,j) = sum_par_floor(i,j) + par_floor_rel(i,j) * par
    enddo
    enddo
@@ -130,6 +135,9 @@ SUBROUTINE stat_carbon ()
    USE vegi_status_current1
    USE vegi_status_current2
    USE grid_status_current1
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
    !Local variables
@@ -152,7 +160,8 @@ SUBROUTINE stat_carbon ()
    
    pool_c_RR (2:Day_in_Year) = pool_c_RR (1:Day_in_Year-1) 
    
-   pool_c_RR (1) = (x+y+z) * C_in_drymass / Max_loc / Max_loc /1000.0
+!   pool_c_RR (1) = (x+y+z) * C_in_drymass / Max_loc / Max_loc /1000.0 !!!>>>>>>>>>>>>TN:rm
+   pool_c_RR (1) = (x+y+z) * C_in_drymass / real(GRID%Area) /1000.0 !!!<<<<<<<<<<<<TN:add
    !                        Unit conversion: (g DM / forest) -> (Kg C / m2)
    
 !_____________ Carbon Fluxes
@@ -210,6 +219,9 @@ SUBROUTINE stat_vegetation ()
    USE data_structure
    USE vegi_status_current1
    USE vegi_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Local variables
@@ -240,7 +252,8 @@ If (doy==150) then
    sum(gmass_leaf(:,:)) +sum(gmass_root(:,:)) +sum(gmass_available(:,:)) +sum(gmass_stock(:,:))
    
    !unit conversion ( gDM/forest -> gDM/m2 )
-   sumup(:) = sumup(:) / Max_loc / Max_loc
+!   sumup(:) = sumup(:) / Max_loc / Max_loc !!!>>>>>>>>>>>>TN:rm
+   sumup(:) = sumup(:) / real(GRID%Area) !!!<<<<<<<<<<<<TN:add
    
    !update running record
    do p=1, PFT_no
@@ -262,7 +275,8 @@ Endif
    enddo
    
    do p = 1, PFT_no
-      lai_each(p) = lai_each(p) / Max_loc / Max_loc
+!      lai_each(p) = lai_each(p) / Max_loc / Max_loc !!!>>>>>>>>>>>>TN:rm
+      lai_each(p) = lai_each(p) / real(GRID%Area) !!!<<<<<<<<<<<<TN:add
    end do
    
    !Calculate LAI for grass PFTs
@@ -272,7 +286,8 @@ Endif
       p=C4g_no
    endif
    
-   lai_each(p) = sum(lai_grass(:,:)) / DivedG / DivedG
+!   lai_each(p) = sum(lai_grass(:,:)) / DivedG / DivedG   !!!>>>>>>>>>>>>TN:rm
+   lai_each(p) = sum(lai_grass(:,:)) / real(GRID%N_tot)  !!!<<<<<<<<<<<<TN:add
    
    !Update of LAI running record
    do p = 1, PFT_no
@@ -485,6 +500,9 @@ SUBROUTINE spinup_out (Fn)
    USE time_counter
    USE vegi_status_current1
    USE grid_status_current1
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Arguments
@@ -503,13 +521,24 @@ i = int(  PFT_no            /100 ) ; string_pft   (1:1)= char(i+48)
 j = int( (PFT_no     -i*100)/ 10 ) ; string_pft   (2:2)= char(j+48)
 k = int(  PFT_no     -i*100-j*10 ) ; string_pft   (3:3)= char(k+48)
 
-i = int(  Dived             /100 ) ; string_dived (1:1)= char(i+48)
-j = int( (Dived      -i*100)/ 10 ) ; string_dived (2:2)= char(j+48)
-k = int(  Dived      -i*100-j*10 ) ; string_dived (3:3)= char(k+48)
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:rm
+!i = int(  Dived             /100 ) ; string_dived (1:1)= char(i+48)
+!j = int( (Dived      -i*100)/ 10 ) ; string_dived (2:2)= char(j+48)
+!k = int(  Dived      -i*100-j*10 ) ; string_dived (3:3)= char(k+48)
+!
+!i = int(  DivedG            /100 ) ; string_divedG(1:1)= char(i+48)
+!j = int( (DivedG     -i*100)/ 10 ) ; string_divedG(2:2)= char(j+48)
+!k = int(  DivedG     -i*100-j*10 ) ; string_divedG(3:3)= char(k+48)
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:rm
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add —Ç‚­•ª‚©‚ç‚ñ!!‚±‚ê‚Å‚¢‚¢‚Ì‚©—vŒŸ“¢
+i = int(  GRID%N_x          /100 ) ; string_dived (1:1)= char(i+48)
+j = int( (GRID%N_x   -i*100)/ 10 ) ; string_dived (2:2)= char(j+48)
+k = int(  GRID%N_x   -i*100-j*10 ) ; string_dived (3:3)= char(k+48)
 
-i = int(  DivedG            /100 ) ; string_divedG(1:1)= char(i+48)
-j = int( (DivedG     -i*100)/ 10 ) ; string_divedG(2:2)= char(j+48)
-k = int(  DivedG     -i*100-j*10 ) ; string_divedG(3:3)= char(k+48)
+i = int(  GRID%N_x          /100 ) ; string_divedG(1:1)= char(i+48)
+j = int( (GRID%N_x   -i*100)/ 10 ) ; string_divedG(2:2)= char(j+48)
+k = int(  GRID%N_x   -i*100-j*10 ) ; string_divedG(3:3)= char(k+48)
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
 
 !_____________ Main part1 (variables of vegi_status_current1)
 write (Fn,*) Spinup_year+Simulation_year  !Variable 'Spinup_year' for the continued simulation
@@ -535,7 +564,8 @@ if (tree_exist(n)) then
 endif
 End do
 
-Do i=1, DivedG
+!Do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+Do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
    write (Fn,'('//string_divedG//'(f12.3,1x))') gmass_leaf      (i,:)
    write (Fn,'('//string_divedG//'(f12.3,1x))') gmass_root      (i,:)
    write (Fn,'('//string_divedG//'(f12.3,1x))') gmass_available (i,:)
@@ -543,8 +573,10 @@ Do i=1, DivedG
    write (Fn,'('//string_divedG//'(f12.3,1x))') lai_grass       (i,:)
 End do
 
-Do i=1, DivedG
-Do j=1, DivedG
+!Do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+!Do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
+Do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+Do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
    write (Fn,'(20(f5.2,1x))')  lai_opt_grass_RunningRecord(:,i,j)
 End do
 End do
@@ -611,6 +643,9 @@ SUBROUTINE spinup_in (Fn)
    USE time_counter
    USE vegi_status_current1
    USE grid_status_current1
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Arguments
@@ -643,7 +678,8 @@ if (tree_exist(n)) then
 endif
 End do
 
-Do i=1, DivedG
+!Do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+Do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
    read (Fn,*) gmass_leaf      (i,:)
    read (Fn,*) gmass_root      (i,:)
    read (Fn,*) gmass_available (i,:)
@@ -651,8 +687,10 @@ Do i=1, DivedG
    read (Fn,*) lai_grass       (i,:)
 End do
 
-Do i=1, DivedG
-Do j=1, DivedG
+!Do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+!Do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
+Do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+Do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
    read (Fn,*) lai_opt_grass_RunningRecord(:,i,j)
 End do
 End do

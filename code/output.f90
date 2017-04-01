@@ -13,6 +13,9 @@ SUBROUTINE output_for_viewer &
    USE vegi_status_current2
    USE grid_status_current1
    USE grid_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Arguments
@@ -66,7 +69,8 @@ If ( counter==1 .or.  (Flag_spinup_read .and. counter==1+Spinup_year*Day_in_Year
    a2 = 1000.0 !A variable for providing consistency with older versions of the SEIB-Viewer
    a3 = 1500.0 !A variable for providing consistency with older versions of the SEIB-Viewer
    write (Fn, '( 3(f7.2,a), i5, a, i5, 3(a,f8.1), a,i4 )' )  &
-   LAT,',',LON,',',ALT,',',Simulation_year,',',PFT_no,',',a1,',',a2,',',a3,',',Max_loc
+!   LAT,',',LON,',',ALT,',',Simulation_year,',',PFT_no,',',a1,',',a2,',',a3,',',Max_loc !!!>>>>>>>>>>>>TN:rm
+   LAT,',',LON,',',ALT,',',Simulation_year,',',PFT_no,',',a1,',',a2,',',a3,',',GRID%N_x !!!<<<<<<<<<<<<TN:add y方向の情報がない。要検討
    
    write (Fn, '( f7.5,a,f7.5,a,f7.5,a,f7.5,a,f7.5 )' ) &
    Albedo_soil0,',',W_fi,',',W_wilt,',',W_sat,',',W_mat
@@ -118,7 +122,8 @@ Endif
 
 !*** 5th line (Physical status of radiation)
    write (Fn,'( f6.1,a, f6.1,a, f6.1,a, f6.1,a, f6.1,a, f6.1 )') &
-   par_direct,',',par_diffuse,',',par*sum(par_grass_rel(:,:))/DivedG/DivedG,',',rad,',',radnet_soil,',',radnet_veg
+!   par_direct,',',par_diffuse,',',par*sum(par_grass_rel(:,:))/DivedG/DivedG,',',rad,',',radnet_soil,',',radnet_veg !!!>>>>>>>>>>>>TN:rm
+   par_direct,',',par_diffuse,',',par*sum(par_grass_rel(:,:))/GRID%N_tot,',',rad,',',radnet_soil,',',radnet_veg !!!<<<<<<<<<<<<TN:add
 
 !*** 6th line (Hydrogical varibales)
    write (Fn,'( f7.2, 3(a,f6.1), a,f8.1 )') &
@@ -145,7 +150,8 @@ Endif
       tmp3(p) = tmp3(p) / Max(1.0, tmp0(p))
    End do
    
-   i = int( sum(par_grass_rel(:,:)) / DivedG / DivedG )
+!   i = int( sum(par_grass_rel(:,:)) / DivedG / DivedG ) !!!>>>>>>>>>>>>TN:rm
+   i = int( sum(par_grass_rel(:,:)) / GRID%N_tot ) !!!<<<<<<<<<<<<TN:add！
    i = max(1,i)
    if (pft_exist(C3g_no)) then
       tmp1(C3g_no) = lue_grass   (i) ; tmp1(C4g_no) = 0.0
@@ -173,7 +179,8 @@ IF ( Day_of_Month(doy) == Day_in_month(Month(doy)) ) then
    do no=1, Max_no
       if ( tree_exist(no) ) i = i + 1
    end do
-   tree_density = real(i) * ( (100.0/Max_loc)**2 )
+!   tree_density = real(i) * ( (100.0/Max_loc)**2 ) !!!>>>>>>>>>>>>TN:rm
+   tree_density = real(i) * ( 10000.0/real(GRID%Area) ) !!!<<<<<<<<<<<<TN:add 単位要チェック
    
    write (Fn, '(i5, a, i2, a, i2, a, f8.1, a, i2)')  &
          year,',',Month(doy),',',biome,',',tree_density,',',type_grass
@@ -181,14 +188,24 @@ IF ( Day_of_Month(doy) == Day_in_month(Month(doy)) ) then
 !*** 2nd line (Carbon strage & flux)
    !Sumup carbon properties
    i  = Day_in_month(Month(doy))
-   a1 = sum(flux_c_uptake_RR (1:i)) * C_in_drymass /Max_loc/Max_loc/ 100.0 !carbon uptake   (Mg C/month/ha)
+!   a1 = sum(flux_c_uptake_RR (1:i)) * C_in_drymass /Max_loc/Max_loc/ 100.0 !carbon uptake   (Mg C/month/ha) !!!>>>>>>>>>>>>TN:rm
+   a1 = sum(flux_c_uptake_RR (1:i)) * C_in_drymass /real(GRID%Area)/ 100.0 !carbon uptake   (Mg C/month/ha) !!!<<<<<<<<<<<<TN:add 単位要チェック
    a2 = ( sum(flux_c_mnt_RR(1:i)) + sum(flux_c_mnt_RR(1:i)) + sum(flux_c_htr_RR(1:i)) + sum(flux_c_fir_RR(1:i)) ) &
-                                    * C_in_drymass /Max_loc/Max_loc/ 100.0 !carbon emission (Mg C/month/ha)
+!                                    * C_in_drymass /Max_loc/Max_loc/ 100.0 !carbon emission (Mg C/month/ha) !!!>>>>>>>>>>>>TN:rm
+                                    * C_in_drymass /real(GRID%Area)/ 100.0 !carbon emission (Mg C/month/ha) !!!<<<<<<<<<<<<TN:add 単位要チェック
    
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:rm
+!   b1 = (pool_litter_trunk + pool_litter_leaf + pool_litter_root + pool_litter_ag + pool_litter_bg) &
+!                      * C_in_drymass / Max_loc / Max_loc / 100.0 !Litter  (Mg C/ha)
+!   b2 = pool_som_int  * C_in_drymass / Max_loc / Max_loc / 100.0 !SOM int (Mg C/ha)
+!   b3 = pool_som_slow * C_in_drymass / Max_loc / Max_loc / 100.0 !SOM slow(Mg C/ha)
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:rm
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:add
    b1 = (pool_litter_trunk + pool_litter_leaf + pool_litter_root + pool_litter_ag + pool_litter_bg) &
-                      * C_in_drymass / Max_loc / Max_loc / 100.0 !Litter  (Mg C/ha)
-   b2 = pool_som_int  * C_in_drymass / Max_loc / Max_loc / 100.0 !SOM int (Mg C/ha)
-   b3 = pool_som_slow * C_in_drymass / Max_loc / Max_loc / 100.0 !SOM slow(Mg C/ha)
+                      * C_in_drymass / real(GRID%Area) / 100.0 !Litter  (Mg C/ha)
+   b2 = pool_som_int  * C_in_drymass / real(GRID%Area) / 100.0 !SOM int (Mg C/ha)
+   b3 = pool_som_slow * C_in_drymass / real(GRID%Area) / 100.0 !SOM slow(Mg C/ha)
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:add
    
    !Woody carbon (Mg C/ha)
    c1 = 0.0
@@ -197,11 +214,13 @@ IF ( Day_of_Month(doy) == Day_in_month(Month(doy)) ) then
       c1 = c1 + mass_leaf(no)+mass_trunk(no)+mass_root(no)+mass_stock(no)+mass_available(no)
    End if
    End do
-   c1 = c1 * C_in_drymass / Max_loc / Max_loc / 100.0
+!   c1 = c1 * C_in_drymass / Max_loc / Max_loc / 100.0 !!!>>>>>>>>>>>>TN:rm
+   c1 = c1 * C_in_drymass / real(GRID%Area) / 100.0 !!!<<<<<<<<<<<<TN:add 単位要チェック
    
    !Grass carbon (Mg C/ha)
    c2 = sum(gmass_leaf(:,:)) + sum(gmass_root(:,:)) + sum(gmass_available(:,:)) + sum(gmass_stock(:,:))
-   c2 = c2 * C_in_drymass / 100.0 / (Max_loc**2)
+!   c2 = c2 * C_in_drymass / 100.0 / (Max_loc**2) !!!>>>>>>>>>>>>TN:rm
+   c2 = c2 * C_in_drymass / 100.0 / real(GRID%Area) !!!<<<<<<<<<<<<TN:add 単位要チェック
    
    write (Fn, '( 2(f6.1,a), 4(f8.1,a), f6.1 )') &
          a1,',',a2,',',b1,',',b2,',',b3,',',c1,',',c2
@@ -235,7 +254,8 @@ IF ( Day_of_Month(doy) == Day_in_month(Month(doy)) ) then
    End if
    End do
    
-   x = C_in_drymass / Max_loc / Max_loc / 100.0
+!   x = C_in_drymass / Max_loc / Max_loc / 100.0 !!!>>>>>>>>>>>>TN:rm
+   x = C_in_drymass / real(GRID%Area) / 100.0 !!!<<<<<<<<<<<<TN:add 単位要チェック
    c_leaf     (:) = c_leaf     (:) * x
    c_trunk    (:) = c_trunk    (:) * x
    c_root     (:) = c_root     (:) * x
@@ -243,7 +263,8 @@ IF ( Day_of_Month(doy) == Day_in_month(Month(doy)) ) then
    c_available(:) = c_available(:) * x
    
    !Sunup grass biomass (Mg C / ha)
-   x = C_in_drymass / 100.0 / (Max_loc**2)
+!   x = C_in_drymass / 100.0 / (Max_loc**2) !!!>>>>>>>>>>>>TN:rm
+   x = C_in_drymass / 100.0 / real(GRID%Area) !!!<<<<<<<<<<<<TN:add 単位要チェック
    if (pft_exist(C3g_no)) then
       c_leaf     (C3g_no) = sum(gmass_leaf(:,:))      * x
       c_trunk    (C3g_no) = 0.0                
@@ -274,8 +295,10 @@ IF ( Day_of_Month(doy) == Day_in_month(Month(doy)) ) then
    DO p=1, PFT_no
    if (pft_exist(p)) then
       write (Fn,'( 7(f9.4,a) )') &
-      sum(gpp_RunningRecord (1:i,p)) * C_in_drymass / Max_loc / Max_loc / 100.0,',', &
-      sum(npp_RunningRecord (1:i,p)) * C_in_drymass / Max_loc / Max_loc / 100.0,',', &
+!      sum(gpp_RunningRecord (1:i,p)) * C_in_drymass / Max_loc / Max_loc / 100.0,',', & !!!>>>>>>>>>>>>TN:rm
+!      sum(npp_RunningRecord (1:i,p)) * C_in_drymass / Max_loc / Max_loc / 100.0,',', & !!!>>>>>>>>>>>>TN:rm
+      sum(gpp_RunningRecord (1:i,p)) * C_in_drymass / real(GRID%Area) / 100.0,',', & !!!<<<<<<<<<<<<TN:add 単位要チェック
+      sum(npp_RunningRecord (1:i,p)) * C_in_drymass / real(GRID%Area) / 100.0,',', & !!!<<<<<<<<<<<<TN:add 単位要チェック
       c_leaf(p),',',c_trunk(p),',',c_root(p),',',c_stock(p),',',c_available(p)
    endif
    END DO
@@ -344,6 +367,9 @@ SUBROUTINE output_annual (Fn)
    USE vegi_status_current2
    USE grid_status_current1
    USE grid_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Arguments
@@ -371,7 +397,8 @@ SUBROUTINE output_annual (Fn)
    real x, y              !For general usage
    
 !_____________ Unit converter: gDM/stand -> MgC/ha
-   unit_conv = C_in_drymass * (100/Max_loc) * (100/Max_loc) / (1000*1000)
+!   unit_conv = C_in_drymass * (100/Max_loc) * (100/Max_loc) / (1000*1000) !!!>>>>>>>>>>>>TN:rm
+   unit_conv = C_in_drymass / real(GRID%Area) / 100.0 !!!<<<<<<<<<<<<TN:add 単位要チェック
    
 !_____________ Prepare output variables
    tree_counter =   0
@@ -395,7 +422,8 @@ SUBROUTINE output_annual (Fn)
    end do
    height_mean = height_mean / max(1, tree_counter) !Mean tree height (m)
    dbh_mean    = dbh_mean    / max(1, tree_counter) !Mean DBH         (m)
-   ba          = ba /Max_loc/Max_loc                !BA (cm2 m-2)
+!   ba          = ba /Max_loc/Max_loc                !BA (cm2 m-2) !!!>>>>>>>>>>>>TN:rm
+   ba          = ba / real(GRID%Area)                !BA (cm2 m-2) !!!<<<<<<<<<<<<TN:add
    
 !mass_grass: Grass biomass (gDM/stand)
    mass_grass = sum(gmass_leaf(:,:)) + sum(gmass_root(:,:)) + sum(gmass_stock(:,:)) + sum(gmass_available(:,:))
@@ -428,7 +456,8 @@ SUBROUTINE output_annual (Fn)
    
    write (Fn,'( i4,a, 2(f7.1,a), 2(f9.3,a), 5(f6.1,a), 2(f5.1,a), f6.1,a, 4(f5.1,a), f7.3,a, f6.1,a, i3 )') &
    year                                      , ',', & ! 1 Simulation year
-   tree_counter * ( (100.0/Max_loc)**2 )     , ',', & ! 2 Tree density (ha-1)
+!   tree_counter * ( (100.0/Max_loc)**2 )     , ',', & ! 2 Tree density (ha-1) !!!>>>>>>>>>>>>TN:rm
+   tree_counter * ( 10000.0/real(GRID%Area) )     , ',', & ! 2 Tree density (ha-1) !!!<<<<<<<<<<<<TN:add 単位要チェック
    height_mean                               , ',', & ! 3 Mean tree height (m)
    dbh_mean                                  , ',', & ! 4 Mean DBH   (m)
    ba                                        , ',', & ! 5 Basal area (cm2 m-2) (m2 ha-1)
@@ -478,10 +507,12 @@ SUBROUTINE output_forest (Fn)
    End do
    
 !Write data
-   write (Fn,'(i4,a1)') count,','
+!   write (Fn,'(i4,a1)') count,',' !!!>>>>>>>>>>>>TN:rm
+   write (Fn,'(i9,a1)') count,',' !!!<<<<<<<<<<<<TN:add
    Do i=1, Max_no
    if (tree_exist(i)) then
-      write (Fn,'( 4(f6.1,a), 2(f7.3,a), 2(f7.4,a), i2,a )') &
+!      write (Fn,'( 4(f6.1,a), 2(f7.3,a), 2(f7.4,a), i2,a )') & !!!>>>>>>>>>>>>TN:rm
+      write (Fn,'( 4(f8.2,a), 2(f7.3,a), 2(f7.4,a), i2,a )') & !!!<<<<<<<<<<<<TN:add
       bole_x(i)                           ,',',& !1: bole location x
       bole_y(i)                           ,',',& !2: bole location y
       crown_x(i)                          ,',',& !3: crown location x
@@ -583,6 +614,9 @@ SUBROUTINE output_radiation (Fn)
    USE data_structure
    USE time_counter
    USE grid_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Augments
@@ -597,7 +631,8 @@ SUBROUTINE output_radiation (Fn)
    
 !Write data
    write (Fn,'(2i4, 2f6.1, 1f7.1, 2f8.1)') &
-   year, doy, sl_hgt(doy), dlen(doy), rad, par, par*sum(par_grass_rel(:,:))/DivedG/DivedG
+!   year, doy, sl_hgt(doy), dlen(doy), rad, par, par*sum(par_grass_rel(:,:))/DivedG/DivedG !!!>>>>>>>>>>>>TN:rm
+   year, doy, sl_hgt(doy), dlen(doy), rad, par, par*sum(par_grass_rel(:,:))/real(GRID%N_tot) !!!<<<<<<<<<<<<TN:add
    
 END SUBROUTINE output_radiation
 
@@ -703,6 +738,9 @@ SUBROUTINE output_cflux (Fn)
    USE grid_status_current1
    USE vegi_status_current1
    USE vegi_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Arguments
@@ -712,7 +750,8 @@ SUBROUTINE output_cflux (Fn)
    real unit_conv !Unit converters
    
 !_____________ Unit converter2
-   unit_conv = C_in_drymass * ( (100/real(Max_loc))**2 ) / (1000*1000) !gDM/stand -> MgC/ha
+!   unit_conv = C_in_drymass * ( (100/real(Max_loc))**2 ) / (1000*1000) !gDM/stand -> MgC/ha!!!>>>>>>>>>>>>TN:rm
+   unit_conv = C_in_drymass / real(GRID%Area) / 100.0 !gDM/stand -> MgC/ha !!!<<<<<<<<<<<<TN:add 単位要チェック
    
 !_____________ Main part
 !Write title
@@ -811,6 +850,9 @@ SUBROUTINE output_ld_vertical (Fn)
    USE data_structure
    USE time_counter
    USE vegi_status_current1
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Arguments
@@ -835,7 +877,8 @@ SUBROUTINE output_ld_vertical (Fn)
          ld1(p,l1) = ld1(p,l1) + x
       end do
    End do
-   ld1(:,:) = ld1(:,:) / Max_loc / Max_loc !adjust unit: (m2 step-1 stand-1) --> (m2 step-1 m-2)
+!   ld1(:,:) = ld1(:,:) / Max_loc / Max_loc !adjust unit: (m2 step-1 stand-1) --> (m2 step-1 m-2) !!!>>>>>>>>>>>>TN:rm
+   ld1(:,:) = ld1(:,:) / real(GRID%Area) !adjust unit: (m2 step-1 stand-1) --> (m2 step-1 m-2) !!!<<<<<<<<<<<<TN:add
    
 !_________________ Convert vertical resolution
    ld2(:,:) = 0.0
@@ -875,6 +918,9 @@ SUBROUTINE output_grass (Fn)
    USE vegi_status_current1
    USE vegi_status_current2
    USE grid_status_current1
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Arguments
@@ -903,13 +949,24 @@ SUBROUTINE output_grass (Fn)
 !_________________ Write data
    write (Fn,'( i3 , i4 , i3 , a3, 5f6.0, 2f5.1 )') &
    year, doy, type_grass, phenology_symbol, &
-   sum(gmass_leaf      (:,:))             /Max_loc/Max_loc, & !Biomass Aboveground
-   sum(gmass_root      (:,:))             /Max_loc/Max_loc, & !Biomass Root       
-   sum(gmass_stock     (:,:))             /Max_loc/Max_loc, & !Biomass Stock      
-   sum(gmass_available (:,:))             /Max_loc/Max_loc, & !Biomass Available  
-   pool_fuel_standG                       /Max_loc/Max_loc, & !Standing dead
-   sum(lai_grass    (:,:))                /DivedG /DivedG , & !Grass LAI
-   sum(lai_opt_grass_RunningRecord(1,:,:))/DivedG /DivedG     !Optimum grass LAI
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:rm
+!   sum(gmass_leaf      (:,:))             /Max_loc/Max_loc, & !Biomass Aboveground
+!   sum(gmass_root      (:,:))             /Max_loc/Max_loc, & !Biomass Root       
+!   sum(gmass_stock     (:,:))             /Max_loc/Max_loc, & !Biomass Stock      
+!   sum(gmass_available (:,:))             /Max_loc/Max_loc, & !Biomass Available  
+!   pool_fuel_standG                       /Max_loc/Max_loc, & !Standing dead
+!   sum(lai_grass    (:,:))                /DivedG /DivedG , & !Grass LAI
+!   sum(lai_opt_grass_RunningRecord(1,:,:))/DivedG /DivedG     !Optimum grass LAI
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:rm
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:add
+   sum(gmass_leaf      (:,:))             /real(GRID%Area ), & !Biomass Aboveground
+   sum(gmass_root      (:,:))             /real(GRID%Area ), & !Biomass Root       
+   sum(gmass_stock     (:,:))             /real(GRID%Area ), & !Biomass Stock      
+   sum(gmass_available (:,:))             /real(GRID%Area ), & !Biomass Available  
+   pool_fuel_standG                       /real(GRID%Area ), & !Standing dead
+   sum(lai_grass    (:,:))                /real(GRID%N_tot), & !Grass LAI
+   sum(lai_opt_grass_RunningRecord(1,:,:))/real(GRID%N_tot)    !Optimum grass LAI
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:add
    
 END SUBROUTINE output_grass
 
@@ -925,6 +982,9 @@ SUBROUTINE output_biomass (Fn)
    USE data_structure
    USE vegi_status_current1
    USE vegi_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Arguments
@@ -961,7 +1021,8 @@ SUBROUTINE output_biomass (Fn)
    endif
    
 !adjust unit ( g dm / stand ---> Mg C / ha )
-   biomass(:) = biomass(:) * C_in_drymass / Max_loc / Max_loc / 100.0
+!   biomass(:) = biomass(:) * C_in_drymass / Max_loc / Max_loc / 100.0 !!!>>>>>>>>>>>>TN:rm
+   biomass(:) = biomass(:) * C_in_drymass / real(GRID%Area) / 100.0 !!!<<<<<<<<<<<<TN:add 単位要チェック
    
 !Preare string for output variables
    i = int(  PFT_no       /100 ) ; string(1:1)= char(i+48)

@@ -6,19 +6,18 @@ MODULE data_structure
 !_____________ Patameters that must be defined at the beginning, Part 1
 integer,parameter::PFT_no  = 16   !Number of plant functional types
 
-integer,parameter::Max_no  = 300  !maximum individual number in a plot
 
 integer,parameter::Max_hgt = 600  !Maximum number of vertical layer (in STEP).
 ! This parameter is referred when calculating sunlight distribution in virtual forest.
 ! Specify larger value of maximum tree height in the forest.
 
-integer,parameter::Dived   = 30   !Resolution of establishment site for woody PFTs.
+!integer,parameter::Dived   = 30   !Resolution of establishment site for woody PFTs.  !!!>>>>>>>>>>>>TN:rm not used for mangrove
 ! The specified value divides one side of virtual forest.
 !For example, when this value is 60 and one side length of virtual forest is 30.0m,
 ! then establishment site exist for 0.5m interval
 ! (for this case, 60*60 = 3600 establishment site exist).
 
-integer,parameter::DivedG = 30 !Resolution of Grass cell.
+!integer,parameter::DivedG = 30 !Resolution of Grass cell.   !!!>>>>>>>>>>>>TN:rm not used for mangrove
 
 integer,parameter::NumSoil = 30 !Number of Soil layer
 
@@ -81,7 +80,7 @@ logical,save:: Flag_spinup_write        !flag: make spinup files or not
 logical,save:: Flag_output_write        !flag: make output files or not
 logical,save:: Flag_randomization       !flag: True  -> employ different random seed for each run
 
-integer,save          ::Max_loc         !side lenght of forest stand (m)
+!integer,save          ::Max_loc         !side lenght of forest stand (m)  !!!>>>>>>>>>>>>TN:rm
 real                  ::Depth           !depth of each soil layer
 real                  ::STEP            !vertical resolution of tree canopy (m)
 real                  ::C_in_drymass    !proportion of carbon in biomass (W/W)
@@ -381,13 +380,24 @@ MODULE vegi_status_current1
    real   ,dimension(Max_no,10)::npp_crownbottom !annual NPP of btm CrownDisks    (gDM/year/step)
    
    !Variables for each floor cell
-   real,dimension(DivedG,DivedG):: gmass_leaf      !c3/c4 grass foliage   biomass (gDM/cell)
-   real,dimension(DivedG,DivedG):: gmass_root      !c3/c4 grass root      biomass (gDM/cell)
-   real,dimension(DivedG,DivedG):: gmass_available !c3/c4 grass available biomass (gDM/cell)
-   real,dimension(DivedG,DivedG):: gmass_stock     !c3/c4 grass stock     biomass (gDM/cell)
-   real,dimension(DivedG,DivedG):: lai_grass       !c3/c4 leaf area index of grass (m2/m2)
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:rm
+!   real,dimension(DivedG,DivedG):: gmass_leaf      !c3/c4 grass foliage   biomass (gDM/cell)
+!   real,dimension(DivedG,DivedG):: gmass_root      !c3/c4 grass root      biomass (gDM/cell)
+!   real,dimension(DivedG,DivedG):: gmass_available !c3/c4 grass available biomass (gDM/cell)
+!   real,dimension(DivedG,DivedG):: gmass_stock     !c3/c4 grass stock     biomass (gDM/cell)
+!   real,dimension(DivedG,DivedG):: lai_grass       !c3/c4 leaf area index of grass (m2/m2)
+!   
+!   real,dimension(20,DivedG,DivedG)::lai_opt_grass_RunningRecord
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:rm
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   real,allocatable,dimension(:,:):: gmass_leaf      !c3/c4 grass foliage   biomass (gDM/cell)
+   real,allocatable,dimension(:,:):: gmass_root      !c3/c4 grass root      biomass (gDM/cell)
+   real,allocatable,dimension(:,:):: gmass_available !c3/c4 grass available biomass (gDM/cell)
+   real,allocatable,dimension(:,:):: gmass_stock     !c3/c4 grass stock     biomass (gDM/cell)
+   real,allocatable,dimension(:,:):: lai_grass       !c3/c4 leaf area index of grass (m2/m2)
    
-   real,dimension(20,DivedG,DivedG)::lai_opt_grass_RunningRecord
+   real,allocatable,dimension(:,:,:)::lai_opt_grass_RunningRecord
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    
    !Running Records of plant properties
    logical,dimension(Day_in_Year,PFT_no)::phenology_RunningRecord  !RR of Phenology Flag
@@ -447,7 +457,8 @@ real,dimension(10)::psat_grass   !light-saturated photosynthesis rate for each p
    real flux_litter_bg    !litter flux of grass underground (gDM/stand/day)
    
    !Patch status
-   logical,dimension(Dived,Dived)::patch_vacant !safe site for establishment of woody PFTs
+!   logical,dimension(Dived,Dived)::patch_vacant !safe site for establishment of woody PFTs !!!>>>>>>>>>>>>TN:rm
+   logical,allocatable,dimension(:,:)::patch_vacant !safe site for establishment of woody PFTs !!!<<<<<<<<<<<<TN:add
    
 END MODULE vegi_status_current2
 
@@ -553,11 +564,20 @@ MODULE grid_status_current2
    !Relative PAR intensity (0.0-1.0)
    real,dimension(Max_no,Max_hgt)::par_direct_rel  !direct PAR for each CrownDisk
    real,dimension(Max_hgt)       ::par_diffuse_rel !diffused PAR intensity for each forest layer
-   real,dimension(Dived ,Dived ) ::par_floor_rel   !total PAR on each estaclishment cell of forest floor
-   real,dimension(DivedG,DivedG) ::par_grass_rel   !total PAR on each grass         cell of forest floor
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:rm
+!   real,dimension(Dived ,Dived ) ::par_floor_rel   !total PAR on each estaclishment cell of forest floor
+!   real,dimension(DivedG,DivedG) ::par_grass_rel   !total PAR on each grass         cell of forest floor
+!   
+!   !1yr sum of PAR intensity for establishment cells
+!   real,dimension(Dived, Dived)::sum_par_floor
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:rm
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   real,allocatable,dimension(:,:) ::par_floor_rel   !total PAR on each estaclishment cell of forest floor
+   real,allocatable,dimension(:,:) ::par_grass_rel   !total PAR on each grass         cell of forest floor
    
    !1yr sum of PAR intensity for establishment cells
-   real,dimension(Dived, Dived)::sum_par_floor
+   real,allocatable,dimension(:,:)::sum_par_floor
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    
    !Fraction of crown coverage
    real frac_crown_coverage

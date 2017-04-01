@@ -27,13 +27,17 @@
 *.exe
 *.out
 *.app
+*.stackdump
 
 # Output Files
-output/*
+code/output/*
+tools/output/*
 !.gitkeep
+*.png
 
 # Backup Files
 backup/*
+*.bak
 
 # MATLAB temp. files
 *.asv

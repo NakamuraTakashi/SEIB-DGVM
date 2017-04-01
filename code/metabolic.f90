@@ -219,6 +219,9 @@ SUBROUTINE photosynthesis ()
    USE vegi_status_current2
    USE grid_status_current1
    USE grid_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Define local variables
@@ -295,8 +298,10 @@ END DO
    endif
    
    !obtain GPP per unit area
-DO i=1, DivedG
-DO j=1, DivedG
+!DO i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+!DO j=1, DivedG !!!>>>>>>>>>>>>TN:rm
+DO i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+DO j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
    
    k = int( MaxParClass * par_grass_rel(i,j) ) !PAR intensity class
    if ( k <= 0 )               cycle
@@ -311,7 +316,8 @@ DO j=1, DivedG
    a3  = 1.0 + sqrt( 1.0 + (par * par_grass_rel(i,j)) * const2 * exp(-1.0*eK(p)*lai_grass(i,j)) )
    const3 = log(a2/a3)
    x      = const1 * const3          !gpp (g dm / m2   / day)
-   x      = x * ((Max_loc/DivedG)**2) !gpp (g dm / cell / day)
+!   x      = x * ((Max_loc/DivedG)**2) !gpp (g dm / cell / day) !!!>>>>>>>>>>>>TN:rm
+   x      = x * (real(GRID%Area)/real(GRID%N_tot)) !gpp (g dm / cell / day) !!!<<<<<<<<<<<<TN:add
    
    !increase gmass_available (g dm / cell / day)
    gmass_available(i,j) = gmass_available(i,j) + x
@@ -323,13 +329,15 @@ DO j=1, DivedG
    
    !canopy conductance
    canopy_cond = canopy_cond + &
-                 ( GS_b1(p)*lai_grass(i,j) + const0*(2.0/eK(p))*const3 ) * ((Max_loc/DivedG)**2)
+!                 ( GS_b1(p)*lai_grass(i,j) + const0*(2.0/eK(p))*const3 ) * ((Max_loc/DivedG)**2) !!!>>>>>>>>>>>>TN:rm
+                 ( GS_b1(p)*lai_grass(i,j) + const0*(2.0/eK(p))*const3 ) * (real(GRID%Area)/real(GRID%N_tot)) !!!<<<<<<<<<<<<TN:add
    
 END DO
 END DO
 
 !Adjust unit of canopy conductance
-canopy_cond = canopy_cond / Max_loc / Max_loc
+!canopy_cond = canopy_cond / Max_loc / Max_loc !!!>>>>>>>>>>>>TN:rm
+canopy_cond = canopy_cond / real(GRID%Area) !!!<<<<<<<<<<<<TN:add
 
 END SUBROUTINE photosynthesis
 
@@ -347,6 +355,9 @@ SUBROUTINE lai_optimum (tmp_air, tmp_soil)
    USE vegi_status_current1
    USE vegi_status_current2
    USE grid_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Argments
@@ -354,7 +365,8 @@ SUBROUTINE lai_optimum (tmp_air, tmp_soil)
    real   ,intent(IN)::tmp_soil  !average soil temperature for 50cm  depth (Celcius)
    
 !Local variables
-   real,dimension(DivedG,DivedG):: lai_opt_grass   !optimum LAI for grass (m2/m2)
+!   real,dimension(DivedG,DivedG):: lai_opt_grass   !optimum LAI for grass (m2/m2) !!!>>>>>>>>>>>>TN:rm
+   real,dimension(GRID%N_x,GRID%N_y):: lai_opt_grass   !optimum LAI for grass (m2/m2) !!!<<<<<<<<<<<<TN:add
    
    real    qt                    !QT10 of maintenance respiration
    real    tmp_sensibility_air   !temperature sensibility multiplier for foliage and stem
@@ -430,8 +442,10 @@ lai_opt(:) = 0.0
       
    END DO
    
-   DO i=1, DivedG
-   DO j=1, DivedG
+!   DO i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+!   DO j=1, DivedG !!!>>>>>>>>>>>>TN:rm
+   DO i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+   DO j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
       lai_opt_grass(i,j) = lai_opt( max(1, int( 10*par_grass_rel(i,j) )) )
       
       lai_opt_grass_RunningRecord(2:20,i,j) = lai_opt_grass_RunningRecord(1:19,i,j)
@@ -454,6 +468,9 @@ SUBROUTINE leaf_season (LAT, tmp_soil)
    USE vegi_status_current1
    USE vegi_status_current2
    USE grid_status_current1
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !_____________ Local parameters
@@ -595,7 +612,8 @@ IF ( Phenology_type(p)==0 ) cycle
      case (5:6) !grass
         flag(p)=.true.
         do k=1, 7
-          y = sum(lai_opt_grass_RunningRecord(k,:,:)) / DivedG / DivedG
+!          y = sum(lai_opt_grass_RunningRecord(k,:,:)) / DivedG / DivedG !!!>>>>>>>>>>>>TN:rm
+          y = sum(lai_opt_grass_RunningRecord(k,:,:)) / real(GRID%N_tot) !!!<<<<<<<<<<<<TN:add
           if (y > 0.01)                                      flag(p)=.false.
         enddo
        
@@ -652,16 +670,20 @@ IF (day_until_bare < 1) cycle
    !for Grass PFTs
    else
       
-      do i=1, DivedG
-      do j=1, DivedG
+!      do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+!      do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
+      do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+      do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
          x                    = gmass_leaf(i,j) / day_until_bare !leaf mass for shedding (gDM/cell)
          gmass_available(i,j) = gmass_available(i,j) + x * RG_f_suck(p)
          flux_litter_ag       = flux_litter_ag   + x * (1.0- RG_f_suck(p))
          gmass_leaf(i,j)      = gmass_leaf(i,j)  - x
-         lai_grass(i,j)       = gmass_leaf(i,j) * SLA(p) / ((Max_loc/DivedG)**2)
+!         lai_grass(i,j)       = gmass_leaf(i,j) * SLA(p) / ((Max_loc/DivedG)**2) !!!>>>>>>>>>>>>TN:rm
+         lai_grass(i,j)       = gmass_leaf(i,j) * SLA(p) / (real(GRID%Area)/real(GRID%N_tot)) !!!<<<<<<<<<<<<TN:add
          
          !give minimum stock mass
-         x = Stockmass_min_grass * ((Max_loc/DivedG)**2) !Minimum stock mass for grass layer (gDM/cell)
+!         x = Stockmass_min_grass * ((Max_loc/DivedG)**2) !Minimum stock mass for grass layer (gDM/cell) !!!>>>>>>>>>>>>TN:rm
+         x = Stockmass_min_grass * (real(GRID%Area)/real(GRID%N_tot)) !Minimum stock mass for grass layer (gDM/cell) !!!<<<<<<<<<<<<TN:add
          if ( day_until_bare==1 .and. gmass_stock(i,j)<x ) then
             
             if ( pool_litter_ag >= x-gmass_stock(i,j) ) then
@@ -713,7 +735,8 @@ IF (Phenology_type(p)==0 ) cycle
      case (5:6) !grass
        flag(p)=.true.
        do k=1, 7
-          y = sum(lai_opt_grass_RunningRecord(k,:,:)) / DivedG / DivedG
+!          y = sum(lai_opt_grass_RunningRecord(k,:,:)) / DivedG / DivedG !!!>>>>>>>>>>>>TN:rm
+          y = sum(lai_opt_grass_RunningRecord(k,:,:)) / real(GRID%N_tot) !!!<<<<<<<<<<<<TN:add
           if (y <= 0.01)                                    flag(p) = .false.
        enddo
        
@@ -766,8 +789,10 @@ IF (dfl_leaf_onset(p) >= day_length_release) cycle
    
    !For Grass species
    Else
-      do i=1, DivedG
-      do j=1, DivedG
+!      do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+!      do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
+      do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+      do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
          !x: stock mass consumed within a day (g/cell)
          x = gmass_stock(i,j) / (day_length_release - dfl_leaf_onset(p))
          
@@ -802,6 +827,9 @@ SUBROUTINE maintenance_resp (tmp_air, tmp_soil)
    USE vegi_status_current1
    USE vegi_status_current2
    USE grid_status_current1
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Set Local Parameter
@@ -940,8 +968,10 @@ End Do
    endif
    
 if (phenology(p)) then
-do i=1, DivedG
-do j=1, DivedG
+!do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+!do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
+do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
    
    !reset mass respiration 
    mass_resp  = 0.000
@@ -995,7 +1025,8 @@ do j=1, DivedG
       flux_litter_ag   = flux_litter_ag   + a1
       flux_litter_bg   = flux_litter_bg   + a2
       
-      lai_grass(i,j)   = gmass_leaf(i,j) * SLA(p) / ((Max_loc/DivedG)**2)
+!      lai_grass(i,j)   = gmass_leaf(i,j) * SLA(p) / ((Max_loc/DivedG)**2) !!!>>>>>>>>>>>>TN:rm
+      lai_grass(i,j)   = gmass_leaf(i,j) * SLA(p) / (real(GRID%Area)/real(GRID%N_tot)) !!!<<<<<<<<<<<<TN:add
    endif
    
 end do
@@ -1020,6 +1051,9 @@ SUBROUTINE turnover ()
    USE vegi_status_current1
    USE vegi_status_current2
    USE grid_status_current1
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Local variables
@@ -1091,15 +1125,18 @@ END DO
    t_rate_ag = TO_f(p)/Day_in_Year !above ground turnover rate
    t_rate_bg = TO_r(p)/Day_in_Year !below ground turnover rate
    
-DO i=1, DivedG
-DO j=1, DivedG
+!DO i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+!DO j=1, DivedG !!!>>>>>>>>>>>>TN:rm
+DO i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+DO j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
    
    !above ground turnover
    t_mass = gmass_leaf(i,j) * t_rate_ag  !leaf mass to drop (g/cell)
    
    gmass_leaf     (i,j) = gmass_leaf     (i,j) - t_mass
    gmass_available(i,j) = gmass_available(i,j) + t_mass * RG_f_suck(p)
-   lai_grass      (i,j) = gmass_leaf     (i,j) * SLA(p) / ((Max_loc/DivedG)**2)
+!   lai_grass      (i,j) = gmass_leaf     (i,j) * SLA(p) / ((Max_loc/DivedG)**2) !!!>>>>>>>>>>>>TN:rm
+   lai_grass      (i,j) = gmass_leaf     (i,j) * SLA(p) / (real(GRID%Area)/real(GRID%N_tot)) !!!<<<<<<<<<<<<TN:add
    
    flux_litter_ag   = flux_litter_ag   + t_mass * (1.0-RG_f_suck(p))
    
@@ -1127,6 +1164,9 @@ SUBROUTINE growth_wood ()
    USE vegi_status_current1
    USE vegi_status_current2
    USE grid_status_current1
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Local parameters for tropical rain forest from Huth & Ditzer (2000)
@@ -1141,8 +1181,10 @@ SUBROUTINE growth_wood ()
    real,parameter::LAgrow_max_day = 0.1
    
 !_____________ Define local variables
-   real   ,dimension((int(0.99999+Max_loc/20.0))**2, 5)::cohort_lai    
-   logical,dimension((int(0.99999+Max_loc/20.0))**2, 5)::cohort_crowded
+!   real   ,dimension((int(0.99999+Max_loc/20.0))**2, 5)::cohort_lai     !!!>>>>>>>>>>>>TN:rm
+!   logical,dimension((int(0.99999+Max_loc/20.0))**2, 5)::cohort_crowded !!!>>>>>>>>>>>>TN:rm
+   real   ,dimension(int(0.99999+GRID%Max_x/20.0)*int(0.99999+GRID%Max_y/20.0), 5)::cohort_lai      !!!<<<<<<<<<<<<TN:add これで良いかわからない。要確認
+   logical,dimension(int(0.99999+GRID%Max_x/20.0)*int(0.99999+GRID%Max_y/20.0), 5)::cohort_crowded  !!!<<<<<<<<<<<<TN:add これで良いかわからない。要確認
    integer,dimension(Max_no)::id_location
    integer,dimension(Max_no)::id_layer
    
@@ -1163,7 +1205,8 @@ SUBROUTINE growth_wood ()
    Do no=1, Max_no 
    If ( tree_exist(no) ) then
       
-      id_location(no) = 1+int(bole_x(no)/20) + int(0.99999+Max_loc/20.0) * int(bole_y(no)/20) 
+!      id_location(no) = 1+int(bole_x(no)/20) + int(0.99999+Max_loc/20.0) * int(bole_y(no)/20)  !!!>>>>>>>>>>>>TN:rm
+      id_location(no) = 1+int(bole_x(no)/20) + int(0.99999+GRID%Max_y/20.0) * int(bole_y(no)/20)  !!!<<<<<<<<<<<<TN:add これで良いかわからない。要確認
       
       x = height(no)*STEP+1.3 !x: tree height (m)
       if     (x<Layer_top(1)) then ;id_layer(no) = 1
@@ -1179,7 +1222,8 @@ SUBROUTINE growth_wood ()
    End if
    End do
    
-   Do i=1, (int(0.99999+Max_loc/20.0))**2 !for each location
+!   Do i=1, (int(0.99999+Max_loc/20.0))**2 !for each location !!!>>>>>>>>>>>>TN:rm
+   Do i=1, int(0.99999+GRID%Max_x/20.0)*int(0.99999+GRID%Max_y/20.0) !for each location !!!<<<<<<<<<<<<TN:add これで良いかわからない。要確認
    Do j=1, 5                              !for each layer
       if ( cohort_lai(i,j)/400 > LAI_max_cohort ) cohort_crowded(i,j)=.true.
    End do
@@ -1311,6 +1355,9 @@ SUBROUTINE growth_grass ()
    USE vegi_status_current1
    USE vegi_status_current2
    USE grid_status_current1
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Local parameter
@@ -1351,12 +1398,15 @@ SUBROUTINE growth_grass ()
    if (pft_exist(C3g_no)) p=C3g_no
    
    !Unit_conv: m2 -> grass_cell
-   Unit_conv = (Max_loc/DivedG)**2
+!   Unit_conv = (Max_loc/DivedG)**2 !!!>>>>>>>>>>>>TN:rm
+   Unit_conv = real(GRID%Area)/real(GRID%N_tot) !!!<<<<<<<<<<<<TN:add
    
 !_____________ each grass type procedure
 IF ( phenology(p) ) then
-DO i=1, DivedG
-DO j=1, DivedG
+!DO i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+!DO j=1, DivedG !!!>>>>>>>>>>>>TN:rm
+DO i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+DO j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
     
     !set lai_opt, running mean of optimum leaf area index
     lai_opt = sum(lai_opt_grass_RunningRecord(1:LaiOpt_period_mean,i,j)) / real(LaiOpt_period_mean)
@@ -1440,8 +1490,10 @@ END IF
    
 !_____________ Give minimum resource as seeds
 IF (doy==1) then
-DO i=1, DivedG
-DO j=1, DivedG
+!DO i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+!DO j=1, DivedG !!!>>>>>>>>>>>>TN:rm
+DO i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
+DO j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
    x = gmass_leaf(i,j)+gmass_root(i,j)+gmass_available(i,j)+gmass_stock(i,j)
    if ( x < Grass_seeds * Unit_conv ) then
       gmass_stock(i,j) = Grass_seeds * Unit_conv

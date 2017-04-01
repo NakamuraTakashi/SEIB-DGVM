@@ -17,6 +17,12 @@ PROGRAM start_point
 !_____________ Set Variables
 !Namespace
    USE data_structure
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE vegi_status_current1
+   USE vegi_status_current2
+   USE grid_status_current2
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Climate data
@@ -59,9 +65,9 @@ PROGRAM start_point
 !_____________ Set location
 !  LAT    north:+, south:- (decimalized)
 !  LON    east:+, west:-   (decimalized)
-   !Pasoh@ Peninsula Malaysia
-    LAT    = 2.97  
-    LON    = 102.3 
+!!!! Fukido@ Ishigaki Island, Japan <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN changed
+    LAT    =  24.40  
+    LON    = 124.18 
    
 !Set cordinate variables
    point = (90-int(LAT)-1)*360 + int(LON+180) + 1
@@ -80,7 +86,7 @@ PROGRAM start_point
    
 !_____________ Read Parameters
 !Read Parameter files
-   open (1, file='parameter.txt', action='READ', status='OLD')
+   open (1, file='parameter_mangrove.txt', action='READ', status='OLD')
       read ( unit=1, nml=Control)       
       read ( unit=1, nml=PFT_type)      
       read ( unit=1, nml=Respiration)   
@@ -91,14 +97,44 @@ PROGRAM start_point
       read ( unit=1, nml=Disturbance)   
       read ( unit=1, nml=Soil_resp)     
    close (1)
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:rm
+!!Read Location data
+!   open ( File_no(1), file=Fn_location, status='OLD')
+!   do i=1, point
+!      read(File_no(1),*) Mask, ALT, Albedo_soil0, W_sat, W_fi, W_mat, W_wilt
+!   end do
+!   close( File_no(1) )
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:rm
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:add
+!Grid data
+   Call read_ROMS_files('D:/ROMS/Fukido/Data/Fukido_grd_v6.nc'           &
+   &                   ,'L:/Egawa_ROMS_Projects/Fukido/ocean_his7.nc'    &
+   &                   , 4  )
    
-!Read Location data
-   open ( File_no(1), file=Fn_location, status='OLD')
-   do i=1, point
-      read(File_no(1),*) Mask, ALT, Albedo_soil0, W_sat, W_fi, W_mat, W_wilt
-   end do
-   close( File_no(1) )
+    Mask    = 1         !Land ocean mask (1:land, 0:ocean)
+    ALT     = 0.0       !altitude (m above MSL)
+    Albedo_soil0 = 0.1  !albedo, default                      !!!値てきとう
+    W_sat   = 0.4565    !saturate point   (m3/m3, 0.0 -> 1.0) !!!値てきとう
+    W_fi    = 0.41708   !filed capacity   (m3/m3, 0.0 -> 1.0) !!!値てきとう
+    W_mat   =-0.3       !matrix potential (m, -0.0001 -> -3.0)!!!値てきとう
+    W_wilt  = 0.16642   !wilting point    (m3/m3, 0.0 -> 1.0) !!!値てきとう
+    write(*,*) GRID%N_x,GRID%N_y
+    write(*,*) GRID%Max_x,GRID%Max_y
+    
+   ! Allocate variables for each floor cell
+   allocate (gmass_leaf     (GRID%N_x, GRID%N_y)     )
+   allocate (gmass_root     (GRID%N_x, GRID%N_y)     )
+   allocate (gmass_available(GRID%N_x, GRID%N_y)     )
+   allocate (gmass_stock    (GRID%N_x, GRID%N_y)     )
+   allocate (lai_grass      (GRID%N_x, GRID%N_y)     )
+   allocate (lai_opt_grass_RunningRecord(20, GRID%N_x, GRID%N_y) )
    
+   allocate (patch_vacant   (GRID%N_x, GRID%N_y)     )
+
+   allocate (par_floor_rel  (GRID%N_x, GRID%N_y)     )
+   allocate (par_grass_rel  (GRID%N_x, GRID%N_y)     )
+   allocate (sum_par_floor  (GRID%N_x, GRID%N_y)     )
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:add
    !data processing
    if (W_fi   > W_sat ) W_fi   = W_sat
    if (W_wilt > W_sat ) W_wilt = W_sat
