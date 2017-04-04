@@ -166,6 +166,8 @@ END DO
    x = max(x, 0.0)
    x = min(x, 1.0)
    
+!$omp parallel private(no)
+!$omp do private(p,par_ave,i)
    DO no=1, Max_no
       p = pft(no) ! p: PFT number
       
@@ -188,6 +190,8 @@ END DO
       co2cmp(no) = co2cmp_today (p,i)
       
    END DO
+!$omp end do
+!$omp end parallel
    
 !_____________ Give photosynthesis condition for each grass cell
    if (pft_exist(C3g_no)) then
@@ -245,6 +249,8 @@ SUBROUTINE photosynthesis ()
    
 !_____________ Woody PFTs
 count = 0
+!$omp parallel private(no)
+!$omp do private(i,gpp_ind,p,const0,const4,const5,a1,a2,a4)
 DO no=1, Max_no
    
    !initialize gpp of a tree
@@ -288,6 +294,8 @@ DO no=1, Max_no
    flux_c_uptake_RR(1) = flux_c_uptake_RR(1) + gpp_ind
    
 END DO
+!$omp end do
+!$omp end parallel
 
 !_____________ Herbaceous PFTs
    !set PFT number, p
@@ -298,6 +306,8 @@ END DO
    endif
    
    !obtain GPP per unit area
+!$omp parallel private(i,j)
+!$omp do private(k,const0,const1,const2,a2,a3,const3,x)
 !DO i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !DO j=1, DivedG !!!>>>>>>>>>>>>TN:rm
 DO i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
@@ -334,6 +344,8 @@ DO j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
    
 END DO
 END DO
+!$omp end do
+!$omp end parallel
 
 !Adjust unit of canopy conductance
 !canopy_cond = canopy_cond / Max_loc / Max_loc !!!>>>>>>>>>>>>TN:rm
@@ -444,6 +456,8 @@ lai_opt(:) = 0.0
    
 !   DO i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !   DO j=1, DivedG !!!>>>>>>>>>>>>TN:rm
+!$omp parallel private(i,j)
+!$omp do
    DO i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
    DO j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
       lai_opt_grass(i,j) = lai_opt( max(1, int( 10*par_grass_rel(i,j) )) )
@@ -452,6 +466,8 @@ lai_opt(:) = 0.0
       lai_opt_grass_RunningRecord(1,i,j)    = lai_opt_grass(i,j)
    END DO
    END DO
+!$omp end do
+!$omp end parallel
    
 END SUBROUTINE lai_optimum
 
@@ -670,6 +686,8 @@ IF (day_until_bare < 1) cycle
    !for Grass PFTs
    else
       
+!$omp parallel private(i,j)
+!$omp do private(x)
 !      do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !      do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
       do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
@@ -697,6 +715,8 @@ IF (day_until_bare < 1) cycle
          end if
       end do
       end do
+!$omp end do
+!$omp end parallel
    end if
    
 END DO
@@ -789,6 +809,8 @@ IF (dfl_leaf_onset(p) >= day_length_release) cycle
    
    !For Grass species
    Else
+!$omp parallel private(i,j)
+!$omp do private(x)
 !      do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !      do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
       do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
@@ -804,6 +826,8 @@ IF (dfl_leaf_onset(p) >= day_length_release) cycle
          npp (p)              = npp(p)          - (x - x / RG_stock_out)
       end do
       end do
+!$omp end do
+!$omp end parallel
    Endif
    
 END DO
@@ -873,6 +897,8 @@ SUBROUTINE maintenance_resp (tmp_air, tmp_soil)
    tmp_sensibility_soil = exp( (tmp_soil - 15.0) * log(qt) / 10.0 )
    
 !_____________ Woody PFTs
+!$omp parallel private(no)
+!$omp do private(p,f_sapwood,mass_required_trunc,mass_required_root,mass_required,mass_resp,x,y,a1,a2,i)
 DO no=1, Max_no
    !set PFT number
    p = pft(no)
@@ -958,6 +984,8 @@ DO no=1, Max_no
    npp_crownbottom_daily(no) = npp_crownbottom_daily (no) - a1 - a2
    
 End Do
+!$omp end do
+!$omp end parallel
    
 !_____________ Herbaceous PFTs
    !set pft number, p
@@ -968,6 +996,8 @@ End Do
    endif
    
 if (phenology(p)) then
+!$omp parallel private(i,j)
+!$omp do private(mass_resp,mass_required_ag,mass_required_bg,mass_required,mass_resp)
 !do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
 do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
@@ -1031,6 +1061,8 @@ do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
    
 end do
 end do
+!$omp end do
+!$omp end parallel
 end if
 
 !_____________ Total carbon emission by maintenance respiration
@@ -1064,6 +1096,8 @@ SUBROUTINE turnover ()
    real    x, y, z     !for general usage
    
 !_____________ Woody PFTs
+!$omp parallel private(no)
+!$omp do private(p,t_rate,t_mass,x,y,z)
 DO no=1, Max_no 
 if (tree_exist(no)) then
    !set pft number
@@ -1101,6 +1135,16 @@ if (tree_exist(no)) then
       x                 = dbh_sapwood(no) + dbh_heartwood(no) !DBH(m)
       dbh_sapwood(no)   = min(x, 0.0188)
       dbh_heartwood(no) = x - dbh_sapwood(no)
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add Mangrove feature ***tentative
+  else if (Life_type(p)==7 .or. Life_type(p)==8) then
+      !Tropical rain trees
+      x = ALM5(p)       * (dbh_sapwood(no) + dbh_heartwood(no)) !new sapwood diameter   (m)
+      y = (1.0-ALM5(p)) * (dbh_sapwood(no) + dbh_heartwood(no)) !new heartwood diameter (m)
+      
+      dbh_sapwood(no)   = x
+      dbh_heartwood(no) = y
+      
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    else
       x                 = dbh_sapwood(no)
       y                 = dbh_heartwood(no)
@@ -1112,6 +1156,8 @@ if (tree_exist(no)) then
    
 end if
 END DO
+!$omp end do
+!$omp end parallel
 
 !_____________ Herbaceous PFTs
    !set pft number, p
@@ -1125,6 +1171,8 @@ END DO
    t_rate_ag = TO_f(p)/Day_in_Year !above ground turnover rate
    t_rate_bg = TO_r(p)/Day_in_Year !below ground turnover rate
    
+!$omp parallel private(i,j)
+!$omp do private(t_mass)
 !DO i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !DO j=1, DivedG !!!>>>>>>>>>>>>TN:rm
 DO i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
@@ -1202,6 +1250,8 @@ SUBROUTINE growth_wood ()
    id_location     (:)   = 0       !(tree_number)    location number that each tree belongs
    id_layer        (:)   = 0       !(tree_number)    layer number that each tree belongs
    
+!$omp parallel private(no)
+!$omp do private(x)
    Do no=1, Max_no 
    If ( tree_exist(no) ) then
       
@@ -1221,6 +1271,8 @@ SUBROUTINE growth_wood ()
       
    End if
    End do
+!$omp end do
+!$omp end parallel
    
 !   Do i=1, (int(0.99999+Max_loc/20.0))**2 !for each location !!!>>>>>>>>>>>>TN:rm
    Do i=1, int(0.99999+GRID%Max_x/20.0)*int(0.99999+GRID%Max_y/20.0) !for each location !!!<<<<<<<<<<<<TN:add これで良いかわからない。要確認
@@ -1230,6 +1282,8 @@ SUBROUTINE growth_wood ()
    End do
    
 !_____________ Each individual of woody PFT procedure
+!$omp parallel private(no)
+!$omp do private(p,a1,a2,a3,a4,a6)
 DO no=1, Max_no 
 IF ( .not. tree_exist(no)     ) cycle
 IF ( .not. phenology(pft(no)) ) cycle
@@ -1277,6 +1331,11 @@ IF ( .not. phenology(pft(no)) ) cycle
     if ( Life_type(p)==1 .or. Life_type(p)==5 ) then
     !For TrBE
        a1 = crown_area(no)
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add Mangrove feature ***tentative
+    else if ( Life_type(p)==7 .or. Life_type(p)==8 ) then
+    !For Mangrove
+       a1 = crown_area(no)
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
     else
     !For other woody PFTs
        a1 = crown_area(no) + PI * crown_diameter(no) * real(height(no)-bole(no)) * STEP
@@ -1293,6 +1352,11 @@ IF ( .not. phenology(pft(no)) ) cycle
 !      a2 = 14.8 * ( (100*dbh_sapwood(no)+100*dbh_heartwood(no))**1.68 ) !Kajimoto et al (2006) 
        a2 = 330 + 50300 * ( (dbh_sapwood(no)+dbh_heartwood(no))**2 )      !Schulze et al (1995)
        a2 = max(0.0, a2-mass_leaf(no))
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add Mangrove feature ***tentative
+    else if ( Life_type(p)==7 .or. Life_type(p)==8 ) then
+    !For TrBE and TrBS
+       a2 = 100000.0 !This large value means that no constrain from this factor
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
     else 
     !For other woody PFTs
        a2 = ALM1(p) * (1/SLA(p)) * (PI/4) * (dbh_sapwood(no)**2 + 2*dbh_sapwood(no)*dbh_heartwood(no))
@@ -1315,6 +1379,12 @@ IF ( .not. phenology(pft(no)) ) cycle
     elseif ( Life_type(p)==2 ) then
     !For BoNS (larch)
        if ( npp_crownbottom_daily(no) < 0.0        ) a6=0.0
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add Mangrove feature ***tentative
+    elseif ( Life_type(p)==7 .or. Life_type(p)==8 ) then
+    !For TrBE (Tropical broadleaved evergreeen trees)
+      !if ( cohort_crowded(id_location(no),id_layer(no)) ) a6=0.0
+       if ( npp_crownbottom_daily(no) < 0.0        ) a6=0.0
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
     endif
     
     !reset daily leaf area stat on bottom of crown layer
@@ -1336,6 +1406,8 @@ IF ( .not. phenology(pft(no)) ) cycle
     mort_regu2(no) = mort_regu2(no) + la(no)/Day_in_Year
     
 END DO
+!$omp end do
+!$omp end parallel
    
 !_____________ carbon emission
    flux_c_gro_RR(1) = flux_c_gro_RR(1) + mass_combust
@@ -1362,7 +1434,7 @@ SUBROUTINE growth_grass ()
    
 !Local parameter
    !Grass seeds biomass that always present (g/m2), This value should be very small
-   real,parameter::Grass_seeds = 0.1
+   real,parameter::Grass_seeds = 0.0!!!>>>>>>>>>>>>TN:changed 0.1 -> 0.0 for no grass establishment
    
    !Fraction of stock resource to aboveground biomass
 !  real,parameter::Frac_Stock = 0.45
@@ -1403,6 +1475,8 @@ SUBROUTINE growth_grass ()
    
 !_____________ each grass type procedure
 IF ( phenology(p) ) then
+!$omp parallel private(i,j)
+!$omp do private(lai_opt,a1,a2,a3)
 !DO i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !DO j=1, DivedG !!!>>>>>>>>>>>>TN:rm
 DO i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
@@ -1486,10 +1560,14 @@ DO j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
     
 END DO
 END DO
+!$omp end do
+!$omp end parallel
 END IF
    
 !_____________ Give minimum resource as seeds
 IF (doy==1) then
+!$omp parallel private(i,j)
+!$omp do private(x)
 !DO i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !DO j=1, DivedG !!!>>>>>>>>>>>>TN:rm
 DO i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
@@ -1500,6 +1578,8 @@ DO j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
    end if
 END DO
 END DO
+!$omp end do
+!$omp end parallel
 END IF
    
 !_____________ carbon emission (gDM / day / stand)
@@ -1532,6 +1612,8 @@ SUBROUTINE crown_adjust ()
    real    x            !for general usage
    
 !_____________ Determine number of crown disks that will be purged
+!$omp parallel private(no)
+!$omp do private(p,hgt,bol,count,x,i)
 DO no=1, Max_no 
 if ( .not. tree_exist(no) )                   cycle
 if ( height(no)-bole(no) <= Crown_depth_min ) cycle
@@ -1564,6 +1646,20 @@ if ( height(no)-bole(no) <= Crown_depth_min ) cycle
       
       count = max(count, i-bole(no) )
       
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add Mangrove feature ***tentative
+   Case (7,8)     !Trees of tropical rain forest
+      !if ( hgt > 34.0 ) then
+      !   x = 0.18
+      !else
+      !   x = 0.0002 * hgt * hgt - 0.0182 * hgt + 0.6
+      !endif
+      !x = x * hgt                    !new crown depth (m)
+      
+      x = ALM6(p) * hgt              !new crown height (m)
+      i = int( height(no) - x/STEP ) !new bole height (STEP)
+      count = max(0, i - bole(no))
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
+      
    Case default !default standard
       do i = 1, min(10, height(no)-bole(no)-1)
          if ( sum(npp_crownbottom(no,1:i))/i < npp_crowntop(no)*ALM4(p) ) count = i
@@ -1589,6 +1685,8 @@ if ( height(no)-bole(no) <= Crown_depth_min ) cycle
     endif
    
 END DO
+!$omp end do
+!$omp end parallel
    
 !_____________ Reset bole-height-adjust control variables
    npp_crownbottom(:,:) = 0.0
@@ -1640,6 +1738,8 @@ mass_combust = 0.0
 mass_reserved = 0.0
 
 !_____________ Growth process for each tree
+!$omp parallel private(no)
+!$omp do private(p,mass_reserved,x,y,up,dn,count,md,diameter_new,height_new,mass_trunk_tmp)
 DO no=1, Max_no 
 
 p = pft(no)
@@ -1686,6 +1786,22 @@ IF ( mass_available(no) <= Mass_buffer          ) cycle !when mass available doe
       npp            (p) = npp            (p) - mass_available(no) * x
       mort_regu1    (no) = mort_regu1    (no) - mass_available(no) * x !Annual NPP (gDM)
       mass_available(no) = mass_available(no) - mass_available(no) * x
+
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add Mangrove feature ***tentative
+   else if (Life_type(p)==7 .or. Life_type(p)==8) then
+      !For tropical rain trees
+      x = ( (dbh_heartwood(no)+dbh_sapwood(no)) / DBH_limit(p) )**2
+      x = min(1.0, x)      !diminishing factor due to size limitation
+      y = mass_available(no) / max(0.01, gpp_daily_ind(no))
+      y = min(1.0, y)      !diminishing factor due to NPP/GPP balance
+      
+      mass_combust      = mass_combust        + mass_available(no) * x * y 
+      resp_leaf     (no)= resp_leaf       (no)+ mass_available(no) * x * y 
+      npp            (p)= npp              (p)- mass_available(no) * x * y 
+      mort_regu1    (no)= mort_regu1      (no)- mass_available(no) * x * y  !Annual NPP (gDM)
+      mass_available(no)= mass_available  (no)- mass_available(no) * x * y 
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
+      
    end if
    
    !Allocate all remaining mass_available to sapwood production
@@ -1752,6 +1868,14 @@ if (x<1.0) cycle
       !Tropical trees in Africa
 !     x = PI * ((46.4587*diameter_new)**2)
       x = PI * ( 0.37 * (height_new*STEP+1.3) )**2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add Mangrove feature ***tentative
+   else if ((Life_type(p)==7 .or. Life_type(p)==8) .and. diameter_new>0.2) then
+      !tropical evergreen trees (large)
+      x = ( 25*diameter_new     )**2 * PI / 4.0
+   else if (Life_type(p)==7 .or. Life_type(p)==8)   then
+      !tropical evergreen trees (small)
+      x = ( (50-125*diameter_new)*diameter_new )**2 * PI / 4.0
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    else
       !other trees
       x = ALM2(p) * (diameter_new**1.6)
@@ -1765,6 +1889,8 @@ if (x<1.0) cycle
    crown_diameter(no) = 2 * sqrt(x/PI)
    
 END DO
+!$omp end do
+!$omp end parallel
 
 !_____________ Carbon emission
 flux_c_gro_RR(1) = flux_c_gro_RR(1) + mass_combust

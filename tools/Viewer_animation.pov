@@ -26,12 +26,12 @@
 //camera      { location <15,40,15> look_at <15,15,0> sky<0,0,1> angle 60 }
 
 // [3]OVERVIEW
-//camera      { location <15,55,30> look_at <15,0,0> sky<0,0,1> angle 60 } 
-//camera      { location <15,60,65> look_at <15,-10,0> sky<0,0,1> angle 60 } 
-//camera      { location <15,55,30> look_at <15,0,0> sky<0,0,1> angle 60 } 
-//camera      { location <15,80,40> look_at <15,-50,0> sky<0,0,1> angle 60 }
-//camera      { location <50,140,70> look_at <50,50,0> sky<0,0,1> angle 60 } 
-camera      { location <15,800,40> look_at <15,-25,0> sky<0,0,1> angle 60 } 
+// For Fukido
+//camera      { location <362,200,400> look_at <362,-250,0> sky<0,0,1> angle 60 } 
+//camera      { location <362,100,700> look_at <362,-322,0> sky<0,0,1> angle 60 } 
+//camera      { location <362,-322,800> look_at <362,-322,0> sky<0,0,1> angle 60 } 
+// Zoom
+camera      { location <362,-200,20> look_at <362,-250,0> sky<0,0,1> angle 60 } 
 
 // [4]UPVIEW
 //camera      { location <0,0,1> look_at <50,60,15> sky<0,0,1> angle 60 }
@@ -43,16 +43,21 @@ camera      { location <15,800,40> look_at <15,-25,0> sky<0,0,1> angle 60 }
 //camera      { location <15,15,50> look_at <15,15,0> sky<0,0,1> angle 60 }
 
         //Scene setting
-light_source{ <50,160,100> color rgb 2.3 shadowless}
-light_source{ <50,-60,100> color rgb 2.3 shadowless}
+//light_source{ <0,100,500> color rgb 2.3 shadowless}
+//light_source{ <724,100,500> color rgb 2.3 shadowless}
 
+// Parallel  Lights
+light_source  {
+                         <1000,1000,4000>
+                         color  rgb 2  
+                         parallel
+}
  
 
 global_settings { ambient_light color rgb 1}
 background  {color Silver }
-//object      {polygon{4,<0,0>,<30,0>,<30,30>,<0,30> 
-object      {polygon{4,<0,0>,<724,0>,<724,644>,<0,644> 
-                    texture{ T_Silver_1D finish{reflection 0.05} }
+object      {polygon{4,<0,0>,<724,0>,<724,-644>,<0,-644> 
+                    texture{ T_Grnt15 finish{reflection 0.0} }
                     }
             }
 
@@ -112,7 +117,7 @@ object      {polygon{4,<0,0>,<724,0>,<724,644>,<0,644>
     
     //Bole
     #if (bole_h>0.0)
-        object {cylinder { <bole_x, bole_y, 0.0>, <bole_x, bole_y, bole_h>, bole_d }
+        object {cylinder { <bole_x, -bole_y, 0.0>, <bole_x, -bole_y, bole_h>, bole_d }
 	        texture {T_Brass_5E}
 	        finish  {reflection 0.0}
         }
@@ -120,18 +125,18 @@ object      {polygon{4,<0,0>,<724,0>,<724,644>,<0,644>
     
     //Foliage
     #if (foliage_h>0.0)
-        object {cylinder { <crown_x, crown_y, bole_h>, <crown_x, crown_y, bole_h+foliage_h>, foliage_d }
+        object {cylinder { <crown_x, -crown_y, bole_h>, <crown_x, -crown_y, bole_h+foliage_h>, foliage_d }
 	     #switch(pft)
 	        #case(1) //Tropical broad-leaved evergreen (1)
-                    texture {T_Copper_4A}
+  	                texture{ pigment{ OrangeRed } }
 	                finish{diffuse 1.0 crand 0.0 phong 1.0 reflection 0.1} 
 	                #break
   	        #case(2) //Tropical broad-leaved evergreen (2)
-                    texture {T_Grnt23}
+  	                texture{ pigment{ ForestGreen } }
                     finish{diffuse 0.5 crand 0.0 phong 1.0 reflection 0.0} 
   	                #break
   	        #case(3) //Tropical broad-leaved evergreen (3)
-  	                texture {Yellow_Pine}
+                    texture {T_Grnt23}
   	                finish{diffuse 0.5 crand 0.0 phong 1.0 reflection 0.0} 
   	                #break 
   	        #case(4) //Tropical broad-leaved evergreen (4)
@@ -139,7 +144,7 @@ object      {polygon{4,<0,0>,<724,0>,<724,644>,<0,644>
                     finish{diffuse 0.5 crand 0.0 phong 1.0 reflection 0.0} 
   	                #break
 	        #case(4) //Tropical broad-leaved raingreen
-	                texture {T_Ruby_Glass}
+	                texture {Yellow_Pine}
 	                finish {diffuse 0.5 crand 0.0 phong 1.0 reflection 0.0}
 	                #break
 	        #case(3) //Temperate needle-leaved evergreen

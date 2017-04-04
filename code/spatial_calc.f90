@@ -21,6 +21,8 @@ SUBROUTINE diffused_radiation ()
    
 !_____________ Leaf Area Index for each layer for each PFT (lai_each)
    lai_each(:,:) = 0.0
+!$omp parallel private(no)
+!$omp do private(x)
    DO no = 1, Max_no
    if ( .not. tree_exist(no)     ) cycle
    if ( .not. phenology(pft(no)) ) cycle
@@ -31,10 +33,14 @@ SUBROUTINE diffused_radiation ()
          lai_each(pft(no), i) = lai_each(pft(no), i) + x
       end do
    END DO
+!$omp end do
+!$omp end parallel
 !   lai_each(:,:) = lai_each(:,:) / real(Max_loc) / real(Max_loc)  !!!>>>>>>>>>>>>TN:rm
    lai_each(:,:) = lai_each(:,:) / real(GRID%Area)                 !!!<<<<<<<<<<<<TN:add
    
 !_____________ Light attenuation coefficent for each forest layer
+!$omp parallel private(i,p)
+!$omp do private(x)
    DO i = 1, Max_hgt
       x = 0.0
       do p = 1, PFT_no
@@ -42,13 +48,19 @@ SUBROUTINE diffused_radiation ()
       end do
       attenuation_idx(i) = x
    END DO
+!$omp end do
+!$omp end parallel
    
 !_____________ Relative intensity of diffuse PAR for each forest layer (par_diffuse_rel)
    par_diffuse_rel(Max_hgt) = 1.0 !top layer
+!$omp parallel private(i)
+!$omp do private(x)
    DO i = Max_hgt, 2, -1
       x = par_diffuse_rel(i) * exp( -1.0 * attenuation_idx(i) )
       par_diffuse_rel(i-1) = x
    END DO
+!$omp end do
+!$omp end parallel
    
 END SUBROUTINE diffused_radiation
 
@@ -78,12 +90,14 @@ SUBROUTINE crown_coverage ()
    
 !_____________ Main(Method1)
    count = 0
+write(*,*) 'OMP9'
 !   Do i=1, Max_loc    !!!>>>>>>>>>>>>TN:rm
 !   Do j=1, Max_loc    !!!>>>>>>>>>>>>TN:rm
    Do i=1, GRID%Max_x  !!!<<<<<<<<<<<<TN:add
    Do j=1, GRID%Max_y  !!!<<<<<<<<<<<<TN:add
       flag_coverage = .false.
-      
+!$omp parallel private(no)
+!$omp do private(x,y,d1,d2,d3,d4,d5,d6,d7,d8,d9,proxy)
       do no = 1, Max_no
       if ( flag_coverage       ) cycle
       if (.not. tree_exist(no) ) cycle
@@ -124,6 +138,8 @@ SUBROUTINE crown_coverage ()
          endif
          
       end do
+!$omp end do
+!$omp end parallel
       
       if (flag_coverage) count = count+1
       
@@ -194,7 +210,10 @@ SUBROUTINE floor_radiation ()
 !   cell_length = real(Max_loc   ) / real(DivedG   ) !Side length for each grass cell (m)  !!!>>>>>>>>>>>>TN:rm
    cell_area   = 0.25 !Area for each grass cell (m2)         !!!<<<<<<<<<<<<TN:add
    cell_length = 0.5  !Side length for each grass cell (m)   !!!<<<<<<<<<<<<TN:add
-   
+
+write(*,*) 'OMP6'
+!$omp parallel private(loop_no)
+!$omp do private(i,j,no,count,flag,x,d1,d2,d3,dist_x,y,dist_y,proxy,frac_intercepted)
    DO loop_no = 1, loop_no_max
       no        = tree_no(loop_no)
       count     = 0
@@ -209,11 +228,12 @@ SUBROUTINE floor_radiation ()
          d1 = crown_x(no) -  x
 !         d2 = crown_x(no) - (x - real(Max_loc))!!!>>>>>>>>>>>>TN:rm
 !         d3 = crown_x(no) - (x + real(Max_loc))!!!>>>>>>>>>>>>TN:rm
-         d2 = crown_x(no) - (x - real(GRID%Max_x))!!!<<<<<<<<<<<<TN:add
-         d3 = crown_x(no) - (x + real(GRID%Max_x))!!!<<<<<<<<<<<<TN:add
+!         d2 = crown_x(no) - (x - real(GRID%Max_x))!!!<<<<<<<<<<<<TN:add>>rm
+!         d3 = crown_x(no) - (x + real(GRID%Max_x))!!!<<<<<<<<<<<<TN:add>>rm
          
          !dist_x: square of minimum distance between centers of crown and grid cell on x-axis
-         dist_x = min(d1**2, d2**2, d3**2)
+!         dist_x = min(d1**2, d2**2, d3**2)!!!>>>>>>>>>>>>TN:rm
+         dist_x = d1**2!!!<<<<<<<<<<<<TN:add
          
          if ( 0.5*crown_diameter(no) + 0.5*cell_length < sqrt(dist_x) ) cycle
 !         do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
@@ -225,11 +245,12 @@ SUBROUTINE floor_radiation ()
             d1 = crown_y(no) -  y
 !            d2 = crown_y(no) - (y - real(Max_loc))!!!>>>>>>>>>>>>TN:rm
 !            d3 = crown_y(no) - (y + real(Max_loc))!!!>>>>>>>>>>>>TN:rm
-            d2 = crown_y(no) - (y - real(GRID%Max_y))!!!<<<<<<<<<<<<TN:add
-            d3 = crown_y(no) - (y + real(GRID%Max_y))!!!<<<<<<<<<<<<TN:add
+!            d2 = crown_y(no) - (y - real(GRID%Max_y))!!!<<<<<<<<<<<<TN:add>>rm
+!            d3 = crown_y(no) - (y + real(GRID%Max_y))!!!<<<<<<<<<<<<TN:add>>rm
             
             !dist_y: square of minimum distance between centers of crown and grid cell on x-axis
-            dist_y = min(d1**2, d2**2, d3**2)
+!            dist_y = min(d1**2, d2**2, d3**2)!!!>>>>>>>>>>>>TN:rm
+            dist_y = d1**2!!!<<<<<<<<<<<<TN:add
             
             !proxy: distance between centers of crown and grid cell on xy-plate
             proxy = sqrt(dist_x + dist_y)
@@ -241,9 +262,11 @@ SUBROUTINE floor_radiation ()
             
          end do
       end do
+
       if (count==0) cycle
       
       frac_intercepted = exp( -1.0 * EK0(pft(no)) * (la(no)/real(count)/cell_area) )
+
 !      do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !      do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
       do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
@@ -254,10 +277,14 @@ SUBROUTINE floor_radiation ()
       end do
       
    END DO
+!$omp end do
+!$omp end parallel
    
 !_____________ Need further computation?
    !When grid layouts of grass cell and establishment patch cell are identical,
    !no need for detailed computation
+write(*,*) 'OMP8'
+!$omp parallel private(i,j)
 !!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:rm
 !   IF (Dived==DivedG) then
 !      do i=1, Dived
@@ -274,6 +301,8 @@ SUBROUTINE floor_radiation ()
        par_floor_rel(i,j) = par_grass_rel(i,j)
     enddo
     enddo
+!$omp end do
+!$omp end parallel
     return
 !!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    
@@ -345,6 +374,90 @@ SUBROUTINE floor_radiation ()
    
 END SUBROUTINE floor_radiation
 
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+! Original code for floor radiation
+SUBROUTINE floor_radiation2 ()
+
+!_____________ Set variables
+!Namespace
+   USE data_structure
+   USE vegi_status_current1
+   USE grid_status_current2
+   USE mod_grid
+   implicit none
+   
+!Local variables
+   real    frac_intercepted, cell_area, cell_length
+   real    x, y, dist_x, dist_y, d1, d2, d3, proxy
+   integer count, loop_no, loop_no_max
+   integer,dimension(Max_no):: tree_no
+   integer no, i, j
+   integer imin,imax,jmin,jmax
+   
+!_____________ Initialize return variables
+   par_grass_rel(:,:) = 1.0
+   par_floor_rel(:,:) = 1.0
+   
+!_____________ count loop number
+   loop_no = 0
+   Do no = 1, Max_no
+      if (.not. tree_exist(no)) cycle
+      loop_no          = loop_no + 1
+      tree_no(loop_no) = no
+   End Do
+   loop_no_max = loop_no
+   
+   !Return if thre are no treess
+   IF (loop_no_max == 0) return
+   
+!_____________ par_grass_rel
+   cell_area   = 0.25 !Area for each grass cell (m2)
+   cell_length = 0.5  !Side length for each grass cell (m)
+
+write(*,*) 'OMP6'
+!$omp parallel private(loop_no)
+!$omp do private(i,j,no,imin,imax,jmin,jmax,x,y,proxy,frac_intercepted)
+   DO loop_no=1, loop_no_max
+     no   = tree_no(loop_no)
+     
+     imin = int((crown_x(no)-0.5*crown_diameter(no))/cell_length) - 1
+     imin = max(1,imin)
+     imax = int((crown_x(no)+0.5*crown_diameter(no))/cell_length) + 1
+     imax = min(GRID%N_x,imax)
+
+     jmin = int((crown_y(no)-0.5*crown_diameter(no))/cell_length) - 1
+     jmin = max(1,jmin)
+     jmax = int((crown_y(no)+0.5*crown_diameter(no))/cell_length) + 1
+     jmax = min(GRID%N_y,jmax)
+
+     do i=imin, imax
+       do j=jmin, jmax
+         !x,y: location of the center of this grid cells on x-axis
+         x = (real(i)-0.5)*cell_length
+         y = (real(j)-0.5)*cell_length
+         
+         !proxy: distance between centers of crown and grid cell on xy-plate
+         proxy = sqrt((crown_x(no)-x)**2 + (crown_y(no)-y)**2)
+         
+         !sumup par_grass_rel, if this cell is under the tree canopy
+         if ( 0.5*crown_diameter(no) + 0.5*cell_length > proxy ) then
+           frac_intercepted = exp( -1.0 * EK0(pft(no)) * (la(no)/cell_area) )
+           par_grass_rel(i,j) = par_grass_rel(i,j) * frac_intercepted
+         endif
+         
+       end do
+     end do
+     
+   END DO
+!$omp end do
+!$omp end parallel
+
+   par_floor_rel(:,:) = par_grass_rel(:,:)
+   
+   return
+   
+END SUBROUTINE floor_radiation2
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
 
 
 !*************************************************************************************************
@@ -401,8 +514,8 @@ SUBROUTINE direct_radiation ()
    integer l1, l2                          
    integer i, j                            
    real    x, y, a1, a2, a3, c1, c2
-   integer flag                            
-   
+   integer flag
+                               
 !_____________ Define local parameters
    !Angle of virtual pipe (unit=degree)
    !(this angle equally divides daily sum of sun radiation into upper and lower parts)
@@ -425,6 +538,9 @@ SUBROUTINE direct_radiation ()
    par_direct_rel(:,:) = 1.00000 !(individual_no, layer_no in step), default values
    
 !_____________ Select trees that require computations
+write(*,*) 'OMP1'
+!$omp parallel private(no)
+!$omp do private(x)
    DO no = 1, Max_no
    IF ( .not. tree_exist(no)      ) cycle
    IF ( .not. phenology(pft(no))  ) cycle
@@ -448,9 +564,14 @@ SUBROUTINE direct_radiation ()
       endif
       
    END DO
+!$omp end do
+!$omp end parallel
    
 !_____________ Simple computation for light attnuation
    If (loop_no2 >= 1) then
+write(*,*) 'OMP2'
+!$omp parallel private(loop)
+!$omp do private(me)
    Do loop = 1, loop_no2      !For each tree
       me = save_value2(loop)  !Recall ID number of the current tree
       
@@ -459,10 +580,15 @@ SUBROUTINE direct_radiation ()
       end do
       
    End Do
+!$omp end do
+!$omp end parallel
    End If
    
 !_____________ Intensive computation of self-shading
    IF (loop_no1 == 0) return
+write(*,*) 'OMP3'
+!$omp parallel private(loop, i)
+!$omp do private(me, r, overlap_sum, j, dist)
    DO loop = 1, loop_no1             !For each tree
       !Prepare tree specific variables
       me      = save_value1(loop)               !ID number of the current tree
@@ -498,9 +624,14 @@ SUBROUTINE direct_radiation ()
       End do
       
    END DO
+!$omp end do
+!$omp end parallel
    
 !_____________ List up tree-pairs that interfare
    IF (loop_no1 < 2) return
+write(*,*) 'OMP4'
+!$omp parallel private(i,j)
+!$omp do private(me,you,a1,a2,a3,y1_me,y2_me,y1_you,y2_you,y_shift,y1,y2,x,y,xband_you,x1_me,x2_me,x1_you,x2_you,c1,c2,flag)
    Do i = 1, loop_no1 !tree 'me' 
    Do j = 1, loop_no1 !tree 'you'
    
@@ -593,9 +724,14 @@ SUBROUTINE direct_radiation ()
       
    End do
    End do
+!$omp end do
+!$omp end parallel
    
 !_____________ Compute among trees shading
 !CDIR LOOPCNT = 15000
+write(*,*) 'OMP5'
+!$omp parallel private(loop, i)
+!$omp do private(me,you,dist_y,dist_x,dist,r1,r2,x,cosine1,cosine2,l1,l2)
 DO loop = 1, loop_no3 !for each combination of individuals
    
    !Reset shade fraction between disks
@@ -660,6 +796,8 @@ DO loop = 1, loop_no3 !for each combination of individuals
    end do
    
 END DO
+!$omp end do
+!$omp end parallel
 
 END SUBROUTINE direct_radiation
 
@@ -696,6 +834,8 @@ SUBROUTINE ground_vacant ()
    patch_vacant(:,:) = GRID%mask(:,:) !!!<<<<<<<<<<<<TN:add
    
 !Calculate safe-site in relation to proximity of previous trees
+!$omp parallel private(no)
+!$omp do private(i,j,x,y,d5,distance)
 Do no=1, Max_no
 if ( .not. tree_exist(no)   ) cycle
    
@@ -731,19 +871,20 @@ if ( bole(no) >= Height_new ) cycle
 !      d9 = (crown_x(no)+Max_loc-x)**2 + (crown_y(no)+Max_loc-y)**2
 !!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:rm
 !!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
-      d1 = (crown_x(no)-real(GRID%Max_x)-x)**2 + (crown_y(no)-real(GRID%Max_y)-y)**2
-      d2 = (crown_x(no)                 -x)**2 + (crown_y(no)-real(GRID%Max_y)-y)**2
-      d3 = (crown_x(no)+real(GRID%Max_x)-x)**2 + (crown_y(no)-real(GRID%Max_y)-y)**2
-      d4 = (crown_x(no)-real(GRID%Max_x)-x)**2 + (crown_y(no)                 -y)**2
+!      d1 = (crown_x(no)-real(GRID%Max_x)-x)**2 + (crown_y(no)-real(GRID%Max_y)-y)**2
+!      d2 = (crown_x(no)                 -x)**2 + (crown_y(no)-real(GRID%Max_y)-y)**2
+!      d3 = (crown_x(no)+real(GRID%Max_x)-x)**2 + (crown_y(no)-real(GRID%Max_y)-y)**2
+!      d4 = (crown_x(no)-real(GRID%Max_x)-x)**2 + (crown_y(no)                 -y)**2
       d5 = (crown_x(no)                 -x)**2 + (crown_y(no)                 -y)**2
-      d6 = (crown_x(no)+real(GRID%Max_x)-x)**2 + (crown_y(no)                 -y)**2
-      d7 = (crown_x(no)-real(GRID%Max_x)-x)**2 + (crown_y(no)+real(GRID%Max_y)-y)**2
-      d8 = (crown_x(no)                 -x)**2 + (crown_y(no)+real(GRID%Max_y)-y)**2
-      d9 = (crown_x(no)+real(GRID%Max_x)-x)**2 + (crown_y(no)+real(GRID%Max_y)-y)**2
+!      d6 = (crown_x(no)+real(GRID%Max_x)-x)**2 + (crown_y(no)                 -y)**2
+!      d7 = (crown_x(no)-real(GRID%Max_x)-x)**2 + (crown_y(no)+real(GRID%Max_y)-y)**2
+!      d8 = (crown_x(no)                 -x)**2 + (crown_y(no)+real(GRID%Max_y)-y)**2
+!      d9 = (crown_x(no)+real(GRID%Max_x)-x)**2 + (crown_y(no)+real(GRID%Max_y)-y)**2
 !!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
       
-      distance = min(d1,d2,d3,d4,d5,d6,d7,d8,d9)
-      distance = sqrt(distance)
+!      distance = min(d1,d2,d3,d4,d5,d6,d7,d8,d9)!!!>>>>>>>>>>>>TN:rm
+!      distance = sqrt(distance)                 !!!>>>>>>>>>>>>TN:rm
+      distance = sqrt(d5)                        !!!<<<<<<<<<<<<TN:add
       
       !determine whether current site is safe or not
       if ( distance < 0.5 * (crown_diameter(no)+Crown_diameter_new) ) then
@@ -753,6 +894,8 @@ if ( bole(no) >= Height_new ) cycle
    end do
    
 End do
+!$omp end do
+!$omp end parallel
    
 END SUBROUTINE ground_vacant
 

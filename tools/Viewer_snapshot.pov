@@ -13,7 +13,7 @@
 
 
         //Specizfy year of drawing
-#declare year =   1;
+#declare year =   5;
                 
 
         //Open data file
@@ -22,14 +22,18 @@
 
         //Scene setting
 // [1]SKEWEDVIEW
-//camera      { location <100,120,30> look_at <55,60,0> sky<0,0,1> angle 60 } 
+//camera      { location <100,120,30> look_at <55,60,0> sky<0,0,1> angle 90 } 
 
 // [2]CLOSE VIEW
 //camera      { location <15,60,35> look_at <15,-10,0> sky<0,0,1> angle 60 }
 //camera      { location <60,15,35> look_at <-10,15,0> sky<0,0,1> angle 60 }
 
 // [3]OVERVIEW
-camera      { location <700,800,60> look_at <15,-25,0> sky<0,0,1> angle 60 } 
+// For Fukido
+camera      { location <362,200,400> look_at <362,-250,0> sky<0,0,1> angle 60 } 
+//camera      { location <362,100,700> look_at <362,-322,0> sky<0,0,1> angle 60 } 
+//camera      { location <362,-322,800> look_at <362,-322,0> sky<0,0,1> angle 60 } 
+
 //camera      { location <15,75,60> look_at <15,-30,0> sky<0,0,1> angle 60 } 
 //camera      { location <15,60,65> look_at <15,-10,0> sky<0,0,1> angle 60 } 
 //camera      { location <50,15,30> look_at <0,15,0> sky<0,0,1> angle 60 } 
@@ -54,7 +58,7 @@ light_source{ <50,-60,100> color 2 shadowless}
  
 
 background  {color Silver }
-object      {polygon{4,<0,0>,<724,0>,<724,644>,<0,644> 
+object      {polygon{4,<0,0>,<724,0>,<724,-644>,<0,-644> 
                     texture{ T_Silver_1D finish{reflection 0.05} }
 //                    texture {T_Grnt10}
                     }
@@ -84,7 +88,7 @@ object      {polygon{4,<0,0>,<724,0>,<724,644>,<0,644>
     
     //Bole
     #if (bole_h>0.0)
-        object {cylinder { <bole_x, bole_y, 0.0>, <bole_x, bole_y, bole_h>, bole_d }
+        object {cylinder { <bole_x, -bole_y, 0.0>, <bole_x, -bole_y, bole_h>, bole_d }
 	        texture {T_Brass_5E}
 	        finish  {reflection 0.0}
         }
@@ -92,7 +96,7 @@ object      {polygon{4,<0,0>,<724,0>,<724,644>,<0,644>
     
     //Foliage
     #if (foliage_h>0.0)
-        object {cylinder { <crown_x, crown_y, bole_h>, <crown_x, crown_y, bole_h+foliage_h>, foliage_d }
+        object {cylinder { <crown_x, -crown_y, bole_h>, <crown_x, -crown_y, bole_h+foliage_h>, foliage_d }
 	     #switch(pft)
 	        #case(1) //Tropical broad-leaved evergreen (1)
                         texture {T_Copper_4A}

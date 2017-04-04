@@ -4,7 +4,7 @@
 MODULE data_structure
 
 !_____________ Patameters that must be defined at the beginning, Part 1
-integer,parameter::PFT_no  = 16   !Number of plant functional types
+integer,parameter::PFT_no  = 4   !Number of plant functional types!!!>>>>>>>>>>>>TN:changed 16 -> 4
 
 integer,parameter::Max_no  = 10000  !maximum individual number in a plot
 
@@ -157,6 +157,8 @@ real   ,dimension(PFT_no)::M1        !Mortality; asymptotic maximum mortality ra
 real   ,dimension(PFT_no)::M2        !Mortality; a parameter of back ground mortality
 real   ,dimension(PFT_no)::M4        !Mortality; a parameter of back ground mortality
 real   ,dimension(PFT_no)::M5        !Mortality; a parameter of back ground mortality
+real   ,dimension(PFT_no)::Msal1     !Mortality; a parameter of salinity effect
+real   ,dimension(PFT_no)::Msal2     !Mortality; a parameter of salinity effect
 real   ,dimension(PFT_no)::TC_min         !Minimum coldest month temperature for persisting
 
 real   ,dimension(PFT_no)::P_establish !Establishment probability in safe_site (year-1 m-2)
@@ -226,7 +228,7 @@ integer,allocatable :: seed(:)
         GS_b1, GS_b2, GS_b3, KM, CO2cmp0
     
     namelist /Dynamics/       &
-        M1, M2, M4, M5, TC_min, &
+        M1, M2, M4, M5, Msal1, Msal2, TC_min, &
         P_establish, TC_max, GDD_max, GDD_min, PAR_min, DM_max, AGE_max, &
         Est_scenario, Est_year_change, Est_pft_OnOff, Est_frac_random
     

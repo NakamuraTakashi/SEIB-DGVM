@@ -2,6 +2,7 @@
 ! Start up procedures for selected sites
 ! (read common parameters and climate data)
 !*************************************************************************************************
+
    Include 'modules.f90'        
    Include 'main.f90'           
    Include 'initialize.f90'     
@@ -86,7 +87,7 @@ PROGRAM start_point
    
 !_____________ Read Parameters
 !Read Parameter files
-   open (1, file='parameter_mangrove.txt', action='READ', status='OLD')
+   open (1, file='parameter_mangrove3.txt', action='READ', status='OLD')
       read ( unit=1, nml=Control)       
       read ( unit=1, nml=PFT_type)      
       read ( unit=1, nml=Respiration)   

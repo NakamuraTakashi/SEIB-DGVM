@@ -1,5 +1,5 @@
 
-!!!=== ver 2017/03/31   Copyright (c) 2017 Takashi NAKAMURA  =====
+!!!=== ver 2017/04/03   Copyright (c) 2017 Takashi NAKAMURA  =====
 
 !!!**** MODULE OF NETCDF READ & WRITE ****************
 
@@ -33,18 +33,21 @@
       
       character(len=*), intent( in) :: GRID_FILE
       character(len=*), intent( in) :: HIS_FILE
-      integer, intent( in) :: resol
+      integer, intent( in) :: resol                 ! Resolution of the ROMS grid (m)
+
+      integer, parameter :: kstart = 1
 
       real, allocatable :: roms_h(:,:) 
       real, allocatable :: roms_mask(:,:)
-      real, allocatable :: roms_sal(:,:)   ! salinity (psu)
-      real, allocatable :: roms_sal_ave(:,:)   ! salinity (psu)
-      real, allocatable :: roms_sal_max(:,:)   ! salinity (psu)
-      real, allocatable :: roms_sal_min(:,:)   ! salinity (psu)
+      real, allocatable :: roms_sal(:,:)       ! salinity (psu)
+      real, allocatable :: roms_sal_ave(:,:)   ! Mean salinity (psu)
+      real, allocatable :: roms_sal_max(:,:)   ! Maximum salinity (psu)
+      real, allocatable :: roms_sal_min(:,:)   ! Minimum salinity (psu)
       
-      integer :: N_xi_rho, N_eta_rho, N_time
+      integer :: N_xi_rho, N_eta_rho, N_s_rho, N_time
       integer :: ncid, var_id
-      integer :: i,j
+      integer :: i,j,k
+      integer :: start4D(4), count4D(4)
       
 !---- Read ROMS grid netCDF file --------------------------------
 
@@ -101,21 +104,51 @@
       
       ! Open NetCDF grid file
       call check( nf90_open(HIS_FILE, nf90_nowrite, ncid) )
+      call get_dimension(ncid, 's_rho',  N_s_rho)
+      call get_dimension(ncid, 'ocean_time',  N_time)
       
       ! Get variable id
-!      call check( nf90_inq_varid(ncid, 'salt', var_id    ) ) 
-!      call check( nf90_get_var(ncid, var_id, roms_sal    ) )
+      call check( nf90_inq_varid(ncid, 'salt', var_id    ) ) 
+      
+      roms_sal_ave(:,:)=0.0d0
+      roms_sal_max(:,:)=0.0d0
+      roms_sal_min(:,:)=9999.0d0
+      
+      Do k=kstart, N_time
+        start4D = (/        1,         1, 1, k /)
+        count4D = (/ N_xi_rho, N_eta_rho, 1, 1 /)
+        call check( nf90_get_var(ncid, var_id, roms_sal, start=start4D, count=count4D    ) )
+        Do j=1, N_eta_rho
+          Do i=1, N_xi_rho
+            roms_sal_ave(i,j)=roms_sal_ave(i,j)+roms_sal(i,j)/real(N_time-kstart+1)
+            if (roms_sal_max(i,j)<roms_sal(i,j)) then
+              roms_sal_max(i,j)=roms_sal(i,j)
+            end if
+            if (roms_sal_min(i,j)>roms_sal(i,j)) then
+              roms_sal_min(i,j)=roms_sal(i,j)
+            end if
+          End do
+        End do
+      End do
       ! Close NetCDF file
       call check( nf90_close(ncid) )
       
       write(*,*) "CLOSE: ", HIS_FILE
       
       
-      CALL ex_grid1(N_xi_rho, N_eta_rho, resol, roms_h,    GRID%h   )
-      CALL ex_grid2(N_xi_rho, N_eta_rho, resol, roms_mask, GRID%mask)
+      CALL ex_grid1(N_xi_rho, N_eta_rho, resol*2, roms_h,    GRID%h   )
+      CALL ex_grid2(N_xi_rho, N_eta_rho, resol*2, roms_mask, GRID%mask)
       
-      Do i=1, N_eta_rho
+      CALL ex_grid1(N_xi_rho, N_eta_rho, resol*2, roms_sal_ave, GRID%sal_ave )
+      CALL ex_grid1(N_xi_rho, N_eta_rho, resol*2, roms_sal_max, GRID%sal_max )
+      CALL ex_grid1(N_xi_rho, N_eta_rho, resol*2, roms_sal_min, GRID%sal_min )
+      
+      Do i=1, GRID%N_y
         write(99,*) GRID%mask(:,i)
+        write(97,*) GRID%h   (:,i)
+        write(96,*) GRID%sal_ave(:,i)
+        write(95,*) GRID%sal_max(:,i)
+        write(94,*) GRID%sal_min(:,i)
       End do
       
       END SUBROUTINE read_ROMS_files
@@ -123,40 +156,40 @@
       
 !**** Expand grid resolution from ROMS to SEIV-DGVM ***************
       
-      SUBROUTINE ex_grid1(Nx, Ny, resol, grd1, grd2)
+      SUBROUTINE ex_grid1(Nx, Ny, ratio, grd1, grd2)
       
-      integer, intent( in) :: Nx,Ny
-      integer, intent( in) :: resol
-      real,    intent( in) :: grd1(Nx,Ny)
-      real,    intent(out) :: grd2(Nx*resol,Ny*resol)
+      integer, intent( in) :: Nx,Ny       ! Parent grid sise
+      integer, intent( in) :: ratio       ! Expansion ratio
+      real,    intent( in) :: grd1(Nx,Ny) ! Parent grid
+      real,    intent(out) :: grd2(Nx*ratio,Ny*ratio) ! Expanded grid
       
       integer :: i,j
       integer :: i2,j2
       
-      Do j=1, Ny*resol
-        Do i=1, Nx*resol
-          i2 = int((i-1)/resol)+1
-          j2 = int((j-1)/resol)+1
+      Do j=1, Ny*ratio
+        Do i=1, Nx*ratio
+          i2 = int((i-1)/ratio)+1
+          j2 = int((j-1)/ratio)+1
           grd2(i,j) = grd1(i2,j2)
         End do
       End do
       
       END SUBROUTINE ex_grid1
 !-------------------------------------------------------------------
-      SUBROUTINE ex_grid2(Nx, Ny, resol, grd1, grd2)
+      SUBROUTINE ex_grid2(Nx, Ny, ratio, grd1, grd2)
       
-      integer, intent( in) :: Nx,Ny
-      integer, intent( in) :: resol
-      real,    intent( in) :: grd1(Nx,Ny)
-      logical, intent(out) :: grd2(Nx*resol,Ny*resol)
+      integer, intent( in) :: Nx,Ny       ! Parent grid sise
+      integer, intent( in) :: ratio       ! Expansion ratio
+      real,    intent( in) :: grd1(Nx,Ny) ! Parent grid
+      logical, intent(out) :: grd2(Nx*ratio,Ny*ratio) ! Expanded grid
       
       integer :: i,j
       integer :: i2,j2
       
-      Do j=1, Ny*resol
-        Do i=1, Nx*resol
-          i2 = int((i-1)/resol)+1
-          j2 = int((j-1)/resol)+1
+      Do j=1, Ny*ratio
+        Do i=1, Nx*ratio
+          i2 = int((i-1)/ratio)+1
+          j2 = int((j-1)/ratio)+1
           if(grd1(i2,j2)==1.0)then
             grd2(i,j) = .true.
           else

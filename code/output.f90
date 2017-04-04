@@ -898,7 +898,7 @@ SUBROUTINE output_ld_vertical (Fn)
       !write (Fn,'( f8.5,a,f8.5,a,f8.5,a,f8.5 )') &
       !      ( ld2(1,l2),',',ld2(2,l2),',',ld2(3,l2),',',ld2(4,l2) )
       
-      write (Fn,'(f8.5)') ld2(10,l2)
+      write (Fn,'(f8.5)') ld2(1,l2)!!!<<<<<<<<<<<<TN:changed 10->1
       
    End do
    

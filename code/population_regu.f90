@@ -857,6 +857,8 @@ SUBROUTINE mortality ()
    real mort_etc     !mortality as a result of other factors
    real mort_total   !mortality as a result of above all factors
    
+   real sal          !top soil salinity (PSU)
+   
 !From embedding FORMIX3
 !   !Crown area for each cohort (m2)
 !   real   ,dimension((int(0.99999+Max_loc/20.0))**2, 5)::cohort_ca     
@@ -1018,6 +1020,24 @@ if ( tree_exist(no) .and. age(no)>1 ) then
 !         if ( cohort_crowded(id_location(no),id_layer(no)) ) mort_greff=M5(p)
 !         if (tree_crowded(no)) mort_greff=M5(p)
          
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add Mangrove feature ***tentative
+      case (7,8) 
+         sal = GRID%sal_ave(int(bole_x(no)*2.0)+1,int(bole_y(no)*2.0)+1)
+         !Under normal condition
+         x      = (mort_regu1(no)/1000.0) / max(0.01, mort_regu2(no))
+            !x         : Annual NPP per leaf area (Kg dm m-2)
+            !mort_regu1: NPP annual (g dm / individual)
+            !mort_regu2: mean leaf area of last year (m2/day)
+            
+         x      = max(0.0, x)
+         mort_greff = M1(p) * exp(Msal1(p)* ( Msal2(p) - sal))/ (M2(p)**x)
+            !large M2 --> intensify grouth rate efficiency to mortality rate
+         
+         !When crowded
+!         if ( cohort_crowded(id_location(no),id_layer(no)) ) mort_greff=M5(p)
+!         if (tree_crowded(no)) mort_greff=M5(p)
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
+         
       !other woody PFTs
       case default
          x      = (mort_regu1(no)/1000.0) / max(0.01, mort_regu2(no))
@@ -1057,6 +1077,11 @@ if ( tree_exist(no) .and. age(no)>1 ) then
       case (5)
          !African trees
          if ( mort_regu1(no)<0.0 .and. age(no)>3 ) mort_etc=mort_etc + mort_greff*9
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add Mangrove feature ***tentative
+      case (7,8)
+         !Other woody PFTs
+         if ( mort_regu1(no)<0.0 .and. age(no)>3 ) mort_etc=mort_etc
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
       case default
          !Other woody PFTs
          if ( mort_regu1(no)<0.0 .and. age(no)>3 ) mort_etc=1.0

@@ -86,6 +86,11 @@ SUBROUTINE main_loop ( LAT, LON, GlobalZone, YearMaxClimate, YearMaxCO2, &
    integer year_climate !Current climate year
    integer i, p, no     !Loop counters
    real    x, y         !For General Usage
+
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+!For standard output
+   integer t1
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    
 !_____________ Intialize variables
 !Initialize variables
@@ -248,12 +253,15 @@ DO counter = counter_begin, counter_end
    
    if (mod(doy, Days_LightComp_Int)==1) then
       !Compute relative intensity of direct radiation for each crown disk of each tree.
+      write(*,*) 'Calc. direct radiation' !!!<<<<<<<<<<<<TN:add
       Call direct_radiation ()
       
       !Compute relative intensity of radiation for each cell of tree establishment.
-      Call floor_radiation ()
-      
-      Call crown_coverage ()
+      write(*,*) 'Calc. floor radiation' !!!<<<<<<<<<<<<TN:add
+!      Call floor_radiation ()!!!>>>>>>>>>>>>TN:rm
+      Call floor_radiation2 () !!!<<<<<<<<<<<<TN:add
+!      Call crown_coverage ()!!!>>>>>>>>>>>>TN:rm
+      write(*,*) 'fin' !!!<<<<<<<<<<<<TN:add
       
    endif
    
@@ -263,14 +271,16 @@ DO counter = counter_begin, counter_end
    !intensity of photosynthesis active radiation on the top of grass layer.
    Call ir_index ()
    
-   !Wild fire subroutines
-   if     (GlobalZone==1) then
-     !African continent
-     Call fire_regime2 (wind_Today)   !!!<<<<<<<<<<<<<<<<<TN changed: wind -> wind_Today
-   else
-     !Default
-     Call fire_regime (W_fi)
-   endif
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+!   !Wild fire subroutines
+!   if     (GlobalZone==1) then
+!     !African continent
+!     Call fire_regime2 (wind_Today)   !!!<<<<<<<<<<<<<<<<<TN changed: wind -> wind_Today
+!   else
+!     !Default
+!     Call fire_regime (W_fi)
+!   endif
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:rm
    
 !*****************************************************************************
    
@@ -324,12 +334,15 @@ ENDIF
 IF ( doy==Day_in_Year ) then
    
    !Determine which tree die
+   write(*,*) 'Calc. mortality' !!!<<<<<<<<<<<<TN:add
    Call mortality ()
    
    !Adjust crown depth by purging crown disks from the bottom of the crown layer
+   write(*,*) 'Calc. crown_adjust' !!!<<<<<<<<<<<<TN:add
    Call crown_adjust ()
    
    !Cause horizontal movement of crown of each tree to the open direction
+   write(*,*) 'Calc. crown_shake' !!!<<<<<<<<<<<<TN:add
    Call crown_shake ()
    
    !Establishment of woody PFTs
@@ -339,20 +352,25 @@ IF ( doy==Day_in_Year ) then
       
       !Determine ground mesh point, where newly saplings can establish.
       !This subroutine should be called before subroutine 'establish'.
+      write(*,*) 'Calc. ground_vacant' !!!<<<<<<<<<<<<TN:add
       Call ground_vacant ()
       
       !Recruitment of trees
+      write(*,*) 'Calc. establish' !!!<<<<<<<<<<<<TN:add
       Call establish (GlobalZone)
       
    end if
    
    !Compute fraction of tree crown coverage.
-   Call crown_coverage ()
+!   write(*,*) 'Calc. crown_coverage' !!!<<<<<<<<<<<<TN:add
+!   Call crown_coverage ()
    
    !Determine dominant grass PFT in the next year
+   write(*,*) 'Calc. grass_priority' !!!<<<<<<<<<<<<TN:add
    Call grass_priority ()
    
    !Determine current biome type of this grid cell
+   write(*,*) 'Calc. biome_determine' !!!<<<<<<<<<<<<TN:add
    Call biome_determine ()
    
 END IF
@@ -416,6 +434,10 @@ IF (Flag_output_write) then
 !  if (doy == 213) then !@ 1 Aug
       Call output_annual (File_no(13))
       Call output_forest (File_no(14))
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+     Call system_clock(t1)
+     write(*,*) t1
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    endif
    
    !Annual output (At the middle of gwoeing season in Northern Hemisphere)
@@ -424,6 +446,9 @@ IF (Flag_output_write) then
    endif
    
 ENDIF
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+ write(*,*) year, doy
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
 
 END DO !The end of daily loop
 !*****************************************************************************
