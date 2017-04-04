@@ -1022,7 +1022,6 @@ if ( tree_exist(no) .and. age(no)>1 ) then
          
 !!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add Mangrove feature ***tentative
       case (7,8) 
-         sal = GRID%sal_ave(int(bole_x(no)*2.0)+1,int(bole_y(no)*2.0)+1)
          !Under normal condition
          x      = (mort_regu1(no)/1000.0) / max(0.01, mort_regu2(no))
             !x         : Annual NPP per leaf area (Kg dm m-2)
@@ -1030,7 +1029,7 @@ if ( tree_exist(no) .and. age(no)>1 ) then
             !mort_regu2: mean leaf area of last year (m2/day)
             
          x      = max(0.0, x)
-         mort_greff = M1(p) * exp(Msal1(p)* ( Msal2(p) - sal))/ (M2(p)**x)
+         mort_greff = M1(p)/ (M2(p)**x)
             !large M2 --> intensify grouth rate efficiency to mortality rate
          
          !When crowded
@@ -1078,16 +1077,18 @@ if ( tree_exist(no) .and. age(no)>1 ) then
          !African trees
          if ( mort_regu1(no)<0.0 .and. age(no)>3 ) mort_etc=mort_etc + mort_greff*9
 !!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add Mangrove feature ***tentative
-      case (7,8)
-         !Other woody PFTs
-         if ( mort_regu1(no)<0.0 .and. age(no)>3 ) mort_etc=mort_etc
+!      case (7,8)
+      case (1)
+         !Mangrove: salinity effect
+         sal = GRID%sal_ave(int(bole_x(no)*2.0)+1,int(bole_y(no)*2.0)+1)
+         mort_etc=mort_etc + Msal2(p)*Msal1(p)**3.0/(Msal1(p)**3.0 - sal**3.0 )
 !!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
       case default
          !Other woody PFTs
          if ( mort_regu1(no)<0.0 .and. age(no)>3 ) mort_etc=1.0
    End Select
    
-   !Sum up all mortality components, and calculate probabilty of death
+   !Sum up all mortality components, and calculate probabilty of death  !!!!TN: mortality‚Í‘«‚µŽZ‚Å—Ç‚¢‚Ì‚©??—vŠm”F
    mort_total   = min(1.0, mort_greff + mort_lim + mort_etc)
    
    !Determine whether die

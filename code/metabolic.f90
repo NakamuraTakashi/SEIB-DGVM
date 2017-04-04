@@ -167,7 +167,7 @@ END DO
    x = min(x, 1.0)
    
 !$omp parallel private(no)
-!$omp do private(p,par_ave,i)
+!$omp do private(p,i,par_ave)
    DO no=1, Max_no
       p = pft(no) ! p: PFT number
       
@@ -250,7 +250,7 @@ SUBROUTINE photosynthesis ()
 !_____________ Woody PFTs
 count = 0
 !$omp parallel private(no)
-!$omp do private(i,gpp_ind,p,const0,const4,const5,a1,a2,a4)
+!$omp do private(i,gpp_ind,p,const0,const4,const5,a1,a2,a4),reduction(+:canopy_cond)
 DO no=1, Max_no
    
    !initialize gpp of a tree
@@ -307,7 +307,7 @@ END DO
    
    !obtain GPP per unit area
 !$omp parallel private(i,j)
-!$omp do private(k,const0,const1,const2,a2,a3,const3,x)
+!$omp do private(k,const0,const1,const2,a2,a3,const3,x),reduction(+:canopy_cond)
 !DO i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !DO j=1, DivedG !!!>>>>>>>>>>>>TN:rm
 DO i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
@@ -454,10 +454,10 @@ lai_opt(:) = 0.0
       
    END DO
    
-!   DO i=1, DivedG !!!>>>>>>>>>>>>TN:rm
-!   DO j=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !$omp parallel private(i,j)
 !$omp do
+!   DO i=1, DivedG !!!>>>>>>>>>>>>TN:rm
+!   DO j=1, DivedG !!!>>>>>>>>>>>>TN:rm
    DO i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
    DO j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
       lai_opt_grass(i,j) = lai_opt( max(1, int( 10*par_grass_rel(i,j) )) )
@@ -687,7 +687,7 @@ IF (day_until_bare < 1) cycle
    else
       
 !$omp parallel private(i,j)
-!$omp do private(x)
+!$omp do private(x),reduction(+:flux_litter_ag),reduction(+:mass_combust)
 !      do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !      do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
       do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
@@ -810,7 +810,7 @@ IF (dfl_leaf_onset(p) >= day_length_release) cycle
    !For Grass species
    Else
 !$omp parallel private(i,j)
-!$omp do private(x)
+!$omp do private(x),reduction(+:resp_grass_bg),reduction(+:mass_combust)
 !      do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !      do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
       do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
@@ -898,7 +898,8 @@ SUBROUTINE maintenance_resp (tmp_air, tmp_soil)
    
 !_____________ Woody PFTs
 !$omp parallel private(no)
-!$omp do private(p,f_sapwood,mass_required_trunc,mass_required_root,mass_required,mass_resp,x,y,a1,a2,i)
+!$omp do private(p,f_sapwood,mass_required_trunc,mass_required_root,mass_resp,x,y,a1,a2,i), &
+!$omp reduction(+:mass_combust),reduction(+:mass_required)
 DO no=1, Max_no
    !set PFT number
    p = pft(no)
@@ -997,7 +998,8 @@ End Do
    
 if (phenology(p)) then
 !$omp parallel private(i,j)
-!$omp do private(mass_resp,mass_required_ag,mass_required_bg,mass_required,mass_resp)
+!$omp do private(mass_resp,mass_required_ag,mass_required_bg), &
+!$omp reduction(+:mass_combust),reduction(+:mass_required),reduction(+:flux_litter_ag),reduction(+:flux_litter_bg)
 !do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
 do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
@@ -1097,7 +1099,7 @@ SUBROUTINE turnover ()
    
 !_____________ Woody PFTs
 !$omp parallel private(no)
-!$omp do private(p,t_rate,t_mass,x,y,z)
+!$omp do private(p,t_rate,t_mass,x,y,z),reduction(+:flux_litter_leaf)
 DO no=1, Max_no 
 if (tree_exist(no)) then
    !set pft number
@@ -1172,7 +1174,7 @@ END DO
    t_rate_bg = TO_r(p)/Day_in_Year !below ground turnover rate
    
 !$omp parallel private(i,j)
-!$omp do private(t_mass)
+!$omp do private(t_mass),reduction(+:flux_litter_ag),reduction(+:flux_litter_bg)
 !DO i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !DO j=1, DivedG !!!>>>>>>>>>>>>TN:rm
 DO i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
@@ -1196,6 +1198,8 @@ DO j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
    
 END DO
 END DO
+!$omp end do
+!$omp end parallel
 
 END SUBROUTINE turnover
 
@@ -1250,8 +1254,8 @@ SUBROUTINE growth_wood ()
    id_location     (:)   = 0       !(tree_number)    location number that each tree belongs
    id_layer        (:)   = 0       !(tree_number)    layer number that each tree belongs
    
-!$omp parallel private(no)
-!$omp do private(x)
+!$omp parallel
+!$omp do private(no,x)
    Do no=1, Max_no 
    If ( tree_exist(no) ) then
       
@@ -1272,18 +1276,18 @@ SUBROUTINE growth_wood ()
    End if
    End do
 !$omp end do
-!$omp end parallel
    
+!$omp do private(i,j)
 !   Do i=1, (int(0.99999+Max_loc/20.0))**2 !for each location !!!>>>>>>>>>>>>TN:rm
    Do i=1, int(0.99999+GRID%Max_x/20.0)*int(0.99999+GRID%Max_y/20.0) !for each location !!!<<<<<<<<<<<<TN:add これで良いかわからない。要確認
    Do j=1, 5                              !for each layer
       if ( cohort_lai(i,j)/400 > LAI_max_cohort ) cohort_crowded(i,j)=.true.
    End do
    End do
+!$omp end do
    
 !_____________ Each individual of woody PFT procedure
-!$omp parallel private(no)
-!$omp do private(p,a1,a2,a3,a4,a6)
+!$omp do private(no,p,a1,a2,a3,a4,a6),reduction(+:mass_combust)
 DO no=1, Max_no 
 IF ( .not. tree_exist(no)     ) cycle
 IF ( .not. phenology(pft(no)) ) cycle
@@ -1476,7 +1480,8 @@ SUBROUTINE growth_grass ()
 !_____________ each grass type procedure
 IF ( phenology(p) ) then
 !$omp parallel private(i,j)
-!$omp do private(lai_opt,a1,a2,a3)
+!$omp do private(lai_opt,a1,a2,a3), &
+!$omp reduction(+:resp_grass_bg),reduction(+:resp_grass_ag),reduction(+:mass_combust),reduction(+:flux_litter_ag)
 !DO i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !DO j=1, DivedG !!!>>>>>>>>>>>>TN:rm
 DO i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
@@ -1739,7 +1744,8 @@ mass_reserved = 0.0
 
 !_____________ Growth process for each tree
 !$omp parallel private(no)
-!$omp do private(p,mass_reserved,x,y,up,dn,count,md,diameter_new,height_new,mass_trunk_tmp)
+!$omp do private(p,mass_reserved,x,y,up,dn,count,md,diameter_new,height_new,mass_trunk_tmp), &
+!$omp reduction(+:flux_litter_trunk),reduction(+:mass_combust)
 DO no=1, Max_no 
 
 p = pft(no)

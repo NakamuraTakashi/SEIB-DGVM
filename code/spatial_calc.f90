@@ -21,8 +21,8 @@ SUBROUTINE diffused_radiation ()
    
 !_____________ Leaf Area Index for each layer for each PFT (lai_each)
    lai_each(:,:) = 0.0
-!$omp parallel private(no)
-!$omp do private(x)
+!$omp parallel
+!$omp do private(no,x)
    DO no = 1, Max_no
    if ( .not. tree_exist(no)     ) cycle
    if ( .not. phenology(pft(no)) ) cycle
@@ -39,8 +39,8 @@ SUBROUTINE diffused_radiation ()
    lai_each(:,:) = lai_each(:,:) / real(GRID%Area)                 !!!<<<<<<<<<<<<TN:add
    
 !_____________ Light attenuation coefficent for each forest layer
-!$omp parallel private(i,p)
-!$omp do private(x)
+!$omp parallel
+!$omp do private(i,p,x)
    DO i = 1, Max_hgt
       x = 0.0
       do p = 1, PFT_no
@@ -53,8 +53,8 @@ SUBROUTINE diffused_radiation ()
    
 !_____________ Relative intensity of diffuse PAR for each forest layer (par_diffuse_rel)
    par_diffuse_rel(Max_hgt) = 1.0 !top layer
-!$omp parallel private(i)
-!$omp do private(x)
+!$omp parallel
+!$omp do private(i,x)
    DO i = Max_hgt, 2, -1
       x = par_diffuse_rel(i) * exp( -1.0 * attenuation_idx(i) )
       par_diffuse_rel(i-1) = x
@@ -91,13 +91,13 @@ SUBROUTINE crown_coverage ()
 !_____________ Main(Method1)
    count = 0
 write(*,*) 'OMP9'
+!$omp parallel private(i,j,no)
+!$omp do private(flag_coverage,x,y,d1,d2,d3,d4,d5,d6,d7,d8,d9,proxy),reduction(+:count)
 !   Do i=1, Max_loc    !!!>>>>>>>>>>>>TN:rm
 !   Do j=1, Max_loc    !!!>>>>>>>>>>>>TN:rm
    Do i=1, GRID%Max_x  !!!<<<<<<<<<<<<TN:add
    Do j=1, GRID%Max_y  !!!<<<<<<<<<<<<TN:add
       flag_coverage = .false.
-!$omp parallel private(no)
-!$omp do private(x,y,d1,d2,d3,d4,d5,d6,d7,d8,d9,proxy)
       do no = 1, Max_no
       if ( flag_coverage       ) cycle
       if (.not. tree_exist(no) ) cycle
@@ -138,13 +138,13 @@ write(*,*) 'OMP9'
          endif
          
       end do
-!$omp end do
-!$omp end parallel
       
       if (flag_coverage) count = count+1
       
    End Do
    End Do
+!$omp end do
+!$omp end parallel
    
 !   frac_crown_coverage = real(count) / real(Max_loc*Max_loc)   !!!>>>>>>>>>>>>TN:rm
    frac_crown_coverage = real(count) / real(GRID%Area)          !!!<<<<<<<<<<<<TN:add
@@ -284,7 +284,8 @@ write(*,*) 'OMP6'
    !When grid layouts of grass cell and establishment patch cell are identical,
    !no need for detailed computation
 write(*,*) 'OMP8'
-!$omp parallel private(i,j)
+!$omp parallel
+!$omp do private(i,j)
 !!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:rm
 !   IF (Dived==DivedG) then
 !      do i=1, Dived
@@ -538,9 +539,6 @@ SUBROUTINE direct_radiation ()
    par_direct_rel(:,:) = 1.00000 !(individual_no, layer_no in step), default values
    
 !_____________ Select trees that require computations
-write(*,*) 'OMP1'
-!$omp parallel private(no)
-!$omp do private(x)
    DO no = 1, Max_no
    IF ( .not. tree_exist(no)      ) cycle
    IF ( .not. phenology(pft(no))  ) cycle
@@ -564,14 +562,12 @@ write(*,*) 'OMP1'
       endif
       
    END DO
-!$omp end do
-!$omp end parallel
    
 !_____________ Simple computation for light attnuation
    If (loop_no2 >= 1) then
 write(*,*) 'OMP2'
 !$omp parallel private(loop)
-!$omp do private(me)
+!$omp do private(i,me)
    Do loop = 1, loop_no2      !For each tree
       me = save_value2(loop)  !Recall ID number of the current tree
       
@@ -586,9 +582,6 @@ write(*,*) 'OMP2'
    
 !_____________ Intensive computation of self-shading
    IF (loop_no1 == 0) return
-write(*,*) 'OMP3'
-!$omp parallel private(loop, i)
-!$omp do private(me, r, overlap_sum, j, dist)
    DO loop = 1, loop_no1             !For each tree
       !Prepare tree specific variables
       me      = save_value1(loop)               !ID number of the current tree
@@ -624,14 +617,9 @@ write(*,*) 'OMP3'
       End do
       
    END DO
-!$omp end do
-!$omp end parallel
    
 !_____________ List up tree-pairs that interfare
    IF (loop_no1 < 2) return
-write(*,*) 'OMP4'
-!$omp parallel private(i,j)
-!$omp do private(me,you,a1,a2,a3,y1_me,y2_me,y1_you,y2_you,y_shift,y1,y2,x,y,xband_you,x1_me,x2_me,x1_you,x2_you,c1,c2,flag)
    Do i = 1, loop_no1 !tree 'me' 
    Do j = 1, loop_no1 !tree 'you'
    
@@ -724,8 +712,6 @@ write(*,*) 'OMP4'
       
    End do
    End do
-!$omp end do
-!$omp end parallel
    
 !_____________ Compute among trees shading
 !CDIR LOOPCNT = 15000
@@ -834,17 +820,18 @@ SUBROUTINE ground_vacant ()
    patch_vacant(:,:) = GRID%mask(:,:) !!!<<<<<<<<<<<<TN:add
    
 !Calculate safe-site in relation to proximity of previous trees
-!$omp parallel private(no)
-!$omp do private(i,j,x,y,d5,distance)
+!$omp parallel
+!$omp do private(no,i,j,x,y,d5,distance)
 Do no=1, Max_no
-if ( .not. tree_exist(no)   ) cycle
+!if ( .not. tree_exist(no)   ) cycle
+ if ( tree_exist(no)   ) then
    
    !two trees cannot exist at the same establishment location
 !   x = real(Dived)/real(Max_loc)!!!>>>>>>>>>>>>TN:rm
    x = 2.0 !!!<<<<<<<<<<<<TN:add
    patch_vacant( int(bole_x(no)*x)+1 , int(bole_y(no)*x)+1 ) = .false.
    
-if ( bole(no) >= Height_new ) cycle
+  if ( bole(no) < Height_new ) then
    
    !examine for proximate area for each grid of establishment coodinate
 !   do i = 1, Dived !!!>>>>>>>>>>>>TN:rm
@@ -892,7 +879,8 @@ if ( bole(no) >= Height_new ) cycle
       endif
    end do
    end do
-   
+  end if
+ end if
 End do
 !$omp end do
 !$omp end parallel

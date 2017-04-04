@@ -27,11 +27,11 @@
 
 // [3]OVERVIEW
 // For Fukido
-//camera      { location <362,200,400> look_at <362,-250,0> sky<0,0,1> angle 60 } 
+camera      { location <362,200,400> look_at <362,-250,0> sky<0,0,1> angle 60 } 
 //camera      { location <362,100,700> look_at <362,-322,0> sky<0,0,1> angle 60 } 
 //camera      { location <362,-322,800> look_at <362,-322,0> sky<0,0,1> angle 60 } 
 // Zoom
-camera      { location <362,-200,20> look_at <362,-250,0> sky<0,0,1> angle 60 } 
+//camera      { location <362,-200,15> look_at <362,-250,0> sky<0,0,1> angle 60 } 
 
 // [4]UPVIEW
 //camera      { location <0,0,1> look_at <50,60,15> sky<0,0,1> angle 60 }
