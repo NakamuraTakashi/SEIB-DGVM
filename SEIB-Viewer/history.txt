@@ -1,0 +1,19 @@
+*****************************************
+SEIB-viewer update history (2008/June/24)
+Hisashi SATO (FRCGC-JAMSTEC)
+http://seib-dgvm.com/hsato/
+*****************************************
+------------ ver2.4 <- ver2.3 ------------
+I fixed some failure in the graph of soil hydrological properties on the information tab.
+
+------------ ver2.3 <- ver2.2 ------------
+The size of data file was compressed to reduce data reading time.
+
+------------ ver2.2 <- ver2.1 ------------
+I fixed the bug that snow amount was not displayed appropriately.
+
+------------ ver2.1 <- ver2.0 ------------
+Bugs were fixed.
+
+------------ ver2.0 <- ver1.0  ------------
+Data writing function was added.
