@@ -228,6 +228,7 @@ Do j = 1, GRID%N_y !!!<<<<<<<<<<<<TN:add
 !   x = P_establish(k) * real(Max_loc**2) / real(Dived**2) !!!>>>>>>>>>>>>TN:rm
    x = P_establish(k) * real(GRID%Area) / real(GRID%N_tot) !!!<<<<<<<<<<<<TN:add
 !!! Add depth effect>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:add
+   y = 10.0*(0.5-GRID%h(i,j))
    x = x * exp(y)/(1.0+exp(y))
 !!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:add
    !Omit establishment
