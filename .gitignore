@@ -30,7 +30,7 @@
 *.stackdump
 
 # Output Files
-code/output/*
+code/output*
 tools/output/*
 !.gitkeep
 *.png

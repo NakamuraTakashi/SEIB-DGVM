@@ -287,39 +287,49 @@ DO counter = counter_begin, counter_end
 !_____________ DAILY BIOLOGICAL PROCESSES
    if (Logging==1) write (File_no(1),*) 'DAILY BIOLOGICAL PROCESSES'
    
+write(*,*) 'photosynthesis_condition' !!!<<<<<<<<<<<<TN:add
    !Calculate photosynthesis rate controlling variables
    Call photosynthesis_condition (tmp_air_Today)
-   
+write(*,*) 'photosynthesis' !!!<<<<<<<<<<<<TN:add
    !Photosynthesis process
    Call photosynthesis ()
    
+write(*,*) 'lai_optimum' !!!<<<<<<<<<<<<TN:add
    !Calculate optimal leaf area index for grass layer
    Call lai_optimum (tmp_air_Today, sum(tmp_soil_Today(1:5))/5.0 )
    
+write(*,*) 'maintenance_resp' !!!<<<<<<<<<<<<TN:add
    !Maintenance respiration
    Call maintenance_resp (tmp_air_Today, sum(tmp_soil_Today(1:5))/5.0 )
    
+write(*,*) 'turnover' !!!<<<<<<<<<<<<TN:add
    !Turnover of plant organs
    Call turnover ()
    
+write(*,*) 'leaf_season' !!!<<<<<<<<<<<<TN:add
    !Penology controller, and biological processes before and after penology change
    !(such as gradual release of stock biomass after onset of foliage phase).
    Call leaf_season (LAT, tmp_soil_Today )
    
+write(*,*) 'growth_wood' !!!<<<<<<<<<<<<TN:add
    !Daily growth procedure for woody PFTs (foliation, fine root growth, and reproduction)
    Call growth_wood ()
    
+write(*,*) 'growth_grass' !!!<<<<<<<<<<<<TN:add
    !Growth and reproduction procedure for grass PFTs.
    Call growth_grass ()
    
+write(*,*) 'spatial_limitation' !!!<<<<<<<<<<<<TN:add
    !Calculate free space around each individual tree. 
    !This information will be employed by following subroutine growth_trunc, 
    !where stem and crown expansion occurs.
    Call spatial_limitation ()
    
+write(*,*) 'growth_trunk' !!!<<<<<<<<<<<<TN:add
    !Expands stem diameter, which cause stem height and crown diameter increases
    Call growth_trunk ()
    
+write(*,*) 'decomposition' !!!<<<<<<<<<<<<TN:add
    !Heterotrophic respiration (Litter and soil organic matter decomposition)
    Call decomposition (W_fi)
    
@@ -375,6 +385,7 @@ IF ( doy==Day_in_Year ) then
    
 END IF
    
+write(*,*) 'PASS:05' !!!<<<<<<<<<<<<TN:add
 !_____________ DAILY UPDATE NET-RADIATION & SOIL-WATER STATUS
    if (Logging==1) write (File_no(1),*) 'DAILY UPDATE NET-RADIATION & SOIL-WATER STATUS'
    
@@ -403,6 +414,7 @@ END IF
    pool_fuel_standT  = max(0.0, pool_fuel_standT  + flux_litter_leaf )
    pool_fuel_standG  = max(0.0, pool_fuel_standG  + flux_litter_ag   )
    
+write(*,*) 'PASS:06' !!!<<<<<<<<<<<<TN:add
 !_____________ MAKE OUTPUT FILES (Write simulation results in output files)
 IF (Flag_output_write) then
    

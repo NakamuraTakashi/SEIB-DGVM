@@ -31,7 +31,7 @@ camera      { location <362,200,400> look_at <362,-250,0> sky<0,0,1> angle 60 }
 //camera      { location <362,100,700> look_at <362,-322,0> sky<0,0,1> angle 60 } 
 //camera      { location <362,-322,800> look_at <362,-322,0> sky<0,0,1> angle 60 } 
 // Zoom
-//camera      { location <362,-200,15> look_at <362,-250,0> sky<0,0,1> angle 60 } 
+//camera      { location <362,-200,50> look_at <362,-250,0> sky<0,0,1> angle 60 } 
 
 // [4]UPVIEW
 //camera      { location <0,0,1> look_at <50,60,15> sky<0,0,1> angle 60 }
@@ -119,7 +119,7 @@ object      {polygon{4,<0,0>,<724,0>,<724,-644>,<0,-644>
     #if (bole_h>0.0)
         object {cylinder { <bole_x, -bole_y, 0.0>, <bole_x, -bole_y, bole_h>, bole_d }
 	        texture {T_Brass_5E}
-	        finish  {reflection 0.0}
+	        finish{diffuse 1.0 crand 0.0 phong 0.5 reflection 0.0}
         }
     #end
     
@@ -129,11 +129,11 @@ object      {polygon{4,<0,0>,<724,0>,<724,-644>,<0,-644>
 	     #switch(pft)
 	        #case(1) //Tropical broad-leaved evergreen (1)
   	                texture{ pigment{ OrangeRed } }
-	                finish{diffuse 1.0 crand 0.0 phong 1.0 reflection 0.1} 
+	                finish{diffuse 1.0 crand 0.0 phong 0.5 reflection 0.0} 
 	                #break
   	        #case(2) //Tropical broad-leaved evergreen (2)
   	                texture{ pigment{ ForestGreen } }
-                    finish{diffuse 0.5 crand 0.0 phong 1.0 reflection 0.0} 
+                    finish{diffuse 0.5 crand 0.0 phong 0.5 reflection 0.0} 
   	                #break
   	        #case(3) //Tropical broad-leaved evergreen (3)
                     texture {T_Grnt23}

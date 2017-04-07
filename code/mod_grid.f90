@@ -29,13 +29,12 @@
 
 !**** Read ROMS GRID & HIS NetCDF file ************************************
 
-      SUBROUTINE read_ROMS_files( GRID_FILE, HIS_FILE, resol)
+      SUBROUTINE read_ROMS_files( GRID_FILE, HIS_FILE, resol, kstart)
       
       character(len=*), intent( in) :: GRID_FILE
       character(len=*), intent( in) :: HIS_FILE
       integer, intent( in) :: resol                 ! Resolution of the ROMS grid (m)
-
-      integer, parameter :: kstart = 1
+      integer, intent( in) :: kstart                ! Start time index of reading ocean_his.nc
 
       real, allocatable :: roms_h(:,:) 
       real, allocatable :: roms_mask(:,:)

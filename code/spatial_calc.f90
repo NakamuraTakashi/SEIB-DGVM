@@ -566,8 +566,8 @@ SUBROUTINE direct_radiation ()
 !_____________ Simple computation for light attnuation
    If (loop_no2 >= 1) then
 write(*,*) 'OMP2'
-!$omp parallel private(loop)
-!$omp do private(i,me)
+!$omp parallel
+!$omp do private(loop,i,me)
    Do loop = 1, loop_no2      !For each tree
       me = save_value2(loop)  !Recall ID number of the current tree
       
@@ -582,6 +582,9 @@ write(*,*) 'OMP2'
    
 !_____________ Intensive computation of self-shading
    IF (loop_no1 == 0) return
+write(*,*) 'OMP3'
+!$omp parallel
+!$omp do private(loop,me,r,overlap_sum,i,j,dist,cosine)
    DO loop = 1, loop_no1             !For each tree
       !Prepare tree specific variables
       me      = save_value1(loop)               !ID number of the current tree
@@ -617,6 +620,8 @@ write(*,*) 'OMP2'
       End do
       
    END DO
+!$omp end do
+!$omp end parallel
    
 !_____________ List up tree-pairs that interfare
    IF (loop_no1 < 2) return
@@ -715,9 +720,9 @@ write(*,*) 'OMP2'
    
 !_____________ Compute among trees shading
 !CDIR LOOPCNT = 15000
-write(*,*) 'OMP5'
-!$omp parallel private(loop, i)
-!$omp do private(me,you,dist_y,dist_x,dist,r1,r2,x,cosine1,cosine2,l1,l2)
+write(*,*) 'OMP4'
+!$omp parallel
+!$omp do private(loop,overlap,me,you,dist_y,i,dist_x,dist,r1,r2,x,cosine1,cosine2,l1,l2)
 DO loop = 1, loop_no3 !for each combination of individuals
    
    !Reset shade fraction between disks
@@ -913,6 +918,8 @@ SUBROUTINE spatial_limitation ()
    logical flag1, flag2
    
 !_____________ for each combination of trees
+!$omp parallel
+!$omp do private(me,you,x,y,proxy,flag1,flag2)
 DO me=1, Max_no
 if ( .not. tree_exist(me)     ) cycle !case no tree
 if ( .not. phenology(pft(me)) ) cycle !case dormant phase
@@ -956,6 +963,8 @@ if ( .not. phenology(pft(me)) ) cycle !case dormant phase
    END DO
    
 END DO
+!$omp end do
+!$omp end parallel
 
 END SUBROUTINE spatial_limitation
 

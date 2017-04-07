@@ -109,8 +109,8 @@ PROGRAM start_point
 !!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:add
 !Grid data
    Call read_ROMS_files('D:/ROMS/Fukido/Data/Fukido_grd_v6.nc'           &
-   &                   ,'L:/Egawa_ROMS_Projects/Fukido/ocean_his7.nc'    &
-   &                   , 4  )
+   &                   ,'D:/ROMS/Fukido/test/ocean_his2.nc'    &
+   &                   , 4, 253  )
    
     Mask    = 1         !Land ocean mask (1:land, 0:ocean)
     ALT     = 0.0       !altitude (m above MSL)

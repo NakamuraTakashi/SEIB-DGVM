@@ -227,7 +227,9 @@ Do j = 1, GRID%N_y !!!<<<<<<<<<<<<TN:add
    !x: adjusted establishment rate of PFT k
 !   x = P_establish(k) * real(Max_loc**2) / real(Dived**2) !!!>>>>>>>>>>>>TN:rm
    x = P_establish(k) * real(GRID%Area) / real(GRID%N_tot) !!!<<<<<<<<<<<<TN:add
-   
+!!! Add depth effect>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:add
+   x = x * exp(y)/(1.0+exp(y))
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:add
    !Omit establishment
    if ( .not. patch_vacant(i,j)                       ) cycle
    if ( sum_par_floor(i,j) / Day_in_Year < PAR_min(k) ) cycle
@@ -1022,15 +1024,11 @@ if ( tree_exist(no) .and. age(no)>1 ) then
          
 !!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add Mangrove feature ***tentative
       case (7,8) 
+         
          !Under normal condition
-         x      = (mort_regu1(no)/1000.0) / max(0.01, mort_regu2(no))
-            !x         : Annual NPP per leaf area (Kg dm m-2)
-            !mort_regu1: NPP annual (g dm / individual)
-            !mort_regu2: mean leaf area of last year (m2/day)
-            
-         x      = max(0.0, x)
-         mort_greff = M1(p)/ (M2(p)**x)
-            !large M2 --> intensify grouth rate efficiency to mortality rate
+         mort_greff = 0.0178 * exp(-242.57*mort_regu4(no))
+         mort_greff = max(mort_greff, 0.0032)
+         mort_greff = mort_greff * M4(p)
          
          !When crowded
 !         if ( cohort_crowded(id_location(no),id_layer(no)) ) mort_greff=M5(p)
@@ -1077,11 +1075,12 @@ if ( tree_exist(no) .and. age(no)>1 ) then
          !African trees
          if ( mort_regu1(no)<0.0 .and. age(no)>3 ) mort_etc=mort_etc + mort_greff*9
 !!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add Mangrove feature ***tentative
-!      case (7,8)
-      case (1)
+      case (7,8)
          !Mangrove: salinity effect
          sal = GRID%sal_ave(int(bole_x(no)*2.0)+1,int(bole_y(no)*2.0)+1)
-         mort_etc=mort_etc + Msal2(p)*Msal1(p)**3.0/(Msal1(p)**3.0 - sal**3.0 )
+         x=Msal2(p)*(sal-Msal1(p))
+         mort_etc=mort_etc + exp(x)/(1.0+exp(x))
+!         mort_etc=mort_etc + Msal2(p)*Msal1(p)**3.0/(Msal1(p)**3.0 - sal**3.0 )
 !!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
       case default
          !Other woody PFTs
