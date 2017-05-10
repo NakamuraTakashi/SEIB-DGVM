@@ -34,6 +34,7 @@ code/output*
 tools/output/*
 !.gitkeep
 *.png
+*.gif
 
 # Backup Files
 backup/*
