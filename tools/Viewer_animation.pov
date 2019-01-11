@@ -2,6 +2,7 @@
 //by Hisashi SATO (2015 Nov 13)
 
 // +KI1.0 +KF50.0 +KFF50 <-- Example of the input for the option box for generating 50yrs frames
+// +KI1.0 +KF100.0 +KFF100
                        
         //Include files
 #include "colors.inc"  
@@ -13,7 +14,7 @@
 #include "metals.inc"  
 
         //Open data file
-#fopen data_file "../code/output2/forest.txt" read
+#fopen data_file "../code/output/forest.txt" read
 
 //[For separate files]
 //#fopen data_file concat(str(int((Flame-1)*clock+1),1,0),".txt") read
@@ -27,9 +28,12 @@
 
 // [3]OVERVIEW
 // For Fukido
-//camera      { location <362,200,400> look_at <362,-250,0> sky<0,0,1> angle 60 } 
-//camera      { location <362,100,700> look_at <362,-322,0> sky<0,0,1> angle 60 } 
-camera      { location <362,-322,800> look_at <362,-322,0> sky<0,0,1> angle 60 } 
+// Bird eve view
+camera      { location <362,200,400> look_at <362,-250,0> sky<0,0,1> angle 60 } 
+//Main view
+//camera      { location <362,-322,800> look_at <362,-322,0> sky<0,0,1> angle 60 } 
+
+//camera      { location <362,100,700> look_at <362,-322,0> sky<0,0,1> angle 60 }  
 // Zoom
 //camera      { location <362,-200,50> look_at <362,-250,0> sky<0,0,1> angle 60 } 
 //camera      { location <362,-200,2> look_at <362,-250,0> sky<0,0,1> angle 60 } 

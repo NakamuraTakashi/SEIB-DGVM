@@ -1,5 +1,5 @@
 -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-SEIB-DGVM Update History (Last modified 17 May 2016)
+SEIB-DGVM Update History (Last modified 18 Oct 2018)
 by Hisashi SATO (JAMSTEC)
 http://seib-dgvm.com/
 
@@ -7,6 +7,130 @@ If you need further explanation for these changes,
 please refer to the model description document,
 which is included in the SEIB-DGVM distribution package
 -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+****** ver3.01 -> ver3.02 ******
+Only the SEIB-Viewer was updated. No change has been done for the SEIB-DGVM.
+
+****** ver3.00 -> ver3.01 ******
+Only minor bug fixes.
+
+****** ver2.82 -> ver3.00 ******
+****** Notice
+(1) Sorry in Japanese. Basically, this code corresponds to Sato et al. (2016) Ecol Evol 6, in which the NOAH-LSM appended to the SEIB-DGVM for mechanistically simulating thermo-hydrology, but for conduct ingreproducive simulations in the Sato et al. (2016) Ecol Evol 6, following modification is neccesary.
+   Activate comment out scripts around lines 352 in the population_regu.f90
+   Activate comment out scripts around lines 906 in the SFLXALL_SRC_VER_2.7.1.f90
+   Activate comment out scripts around lines 962 in the SFLXALL_SRC_VER_2.7.1.f90
+   Activate comment out scripts around lines 136 in the start_point.f90
+   Comment out select-case-structure around line 230 in the main_point.f90
+   The variable TBOT (Soil Bottom Temperature) in the main_point.f90 should be fixed at -2.5, which is taken from Vasiliev & Fedorov (2003).
+   Configure parameter.txt so that only larch trees can be established
+(2) These modifications are not reflected to the model-description-document. When I have a spare time, I will do it.
+
+****** Changes in model structures
+(1) NOAH-LSM‚ğŒ‹‡‚µ‚½B‚±‚ÌŒ‹‡‚ÉŠÖ‚µ‚Ä‚ÌŠî–{î•ñ‚ÍSato et al. (2016) Ecol Evol 6‚ÉŒfÚ‚³‚ê‚Ä‚¢‚éBparameter.txt’†‚Ìƒpƒ‰ƒ[ƒ^[uFlag_land_physicsv‚Éu.false.v‚ğ—^‚¦‚é‚ÆAˆê‰ANOAH-LSM‚ğg—p‚µ‚È‚¢]—ˆ’Ê‚è‚ÌŒvZ‚ªs‚í‚ê‚éB‚½‚¾‚µAŠJ”­Ò‚ÍA¡‚Ì‚Æ‚±‚ëANOAH-LSM‚ğŠO‚µ‚½ó‘Ô‚Åd–‚ğ‚µ‚Ä‚¨‚ç‚¸ANOAH-LSM”²‚«‚Å‚Ì“®ì‚É•s‹ï‡‚ª‚ ‚Á‚½‚Æ‚µ‚Ä‚àA‹C‚ª‚Â‚¢‚Ä‚¢‚È‚¢‰Â”\«‚ª‚ ‚é“_‚É—¯ˆÓB
+
+Œ‹‡‚³‚¹‚½NOAH-LSM‚Ì–{‘Ì‚ÍA”z•zƒpƒbƒP[ƒW’†‚ÌuSFLXALL_SRC_VER_2.7.1.f90vBWeb Site‚©‚ç“üè‚µ‚ÄAˆê•”(“üo—ÍŠÖ˜A‚È‚Ç)‚Ì‚İ•ÏX‚µ‚Ä‚¢‚éBˆÈ‰º‚ÌURL‚ª“üèæBftp://ftp.emc.ncep.noaa.gov/mmb/gcp/ldas/noahlsm/
+‚±‚Ìƒtƒ@ƒCƒ‹’†‚Ì•ÏX‰ÓŠ‚É‚ÍA‘S‚ÄuInserted by H.Satov‚Æ‚¢‚¤’ß‚ª“ü‚ê‚Ä‚ ‚é
+
+‚È‚¨ASato et al. (2016)‚É‹LÚ‚µ‚½‚Æ‚¨‚èA“yëÅã•”‚Ì”ME…ƒRƒ“ƒ_ƒNƒ^ƒ“ƒX•Ï”DF1‚ğ’nã•”ƒŠƒ^[—Ê‚Å§Œä‚³‚¹‚Ä‚¢‚éimain.f90‚ÅDF1_given‚ğ’è‹`‚µA‚±‚ê‚ğNOAH-LSM‚É“n‚µ‚Ä‚¢‚éjB‚±‚ê‚Í“ŒƒVƒxƒŠƒA‚Å’²®‚µ‚½’l‚ğg‚Á‚Ä‚¨‚èAü–k‹Éˆæ‚Ì‘¼‚ÌƒoƒCƒI[ƒ€‚Å‚ÍAÄ’²®‚ª•K—v‚Æ‚È‚é‰Â”\«‚ª‚‚¢B
+
+(2) ‹CÛƒf[ƒ^‚Ì“ü—ÍƒAƒCƒeƒ€‚ğ•ÏX‚µ‚½B‰_“x‚Ì‘ã‚í‚è‚É‰ºŒü‚«’Z”gE’·”g•úËAâ‘Î¼“x‚Ì‘ã‚í‚è‚É‘Š‘Î¼“xB‹Cˆ³‚ğ“ü—Íƒf[ƒ^‚©‚çŠO‚µ‚½iƒTƒuƒ‹[ƒ`ƒ“air‚É‚¨‚¢‚ÄA‹C‰·‚Æ•W‚‚©‚çŒvZjB‚Ü‚½ƒf[ƒ^‚Ì•À‚Ñ‡‚É‚à•ÏX‚ª‚ ‚é‚Ì‚ÅA’ˆÓB‚±‚ê‚É‘Î‰‚µ‚½V‚µ‚¢‹CÛƒf[ƒ^Ø‚èæ‚èƒVƒXƒeƒ€‚ğ—§‚¿ã‚°‚½B
+http://seib-dgvm.com/data_server3.html
+
+V‚½‚É‰ºŒü‚«’·”g•úË‚ª“ü—Í‚³‚ê‚é‚æ‚¤‚É‚È‚Á‚½‚Ì‚ÅA‚±‚ê‚ğg‚Á‚ÄãŒü‚«’·”g•úËiradlong_upj‚ğŒvZ‚·‚é‚æ‚¤‚É‚µ‚½BÚ‚µ‚­‚ÍASubroutine net_radiation‚ğQÆB
+
+(3) NOAH-LSM‚ÍAZobler‚Ì“yëƒ^ƒCƒviGLOBAL SOIL TYPES, 1-DEGREE GRIDj‚Å‹ì“®‚·‚é‚±‚Æ‚ª‘O’ñ‚Æ‚È‚Á‚Ä‚¢‚éB‚»‚±‚ÅA‘S‹…ƒpƒ‰ƒ[ƒ^[ƒtƒ@ƒCƒ‹‚Éland_prop.txt‚ÉZobler‚Ì“yëƒ^ƒCƒv‚ğ’Ç‰Á‚µ‚ÄA‚±‚±‚©‚ç“Ç‚İ‚Ü‚ê‚éZobler‚Ì“yëƒ^ƒCƒv‚ğŒ³‚ÉA‘¼‚ÌŠeí“yëƒvƒƒpƒeƒB‚ğ—^‚¦‚é‚æ‚¤‚É‚µ‚½BÀ‘•‰ÓŠ‚ÍAmain_point.f90‚Ì230s•t‹ßAmain.f90‚Ì240s•t‹ßB
+
+(4) SEIB‚Ìƒ•úË—ÊŒvZƒTƒuƒ‹[ƒ`ƒ“iphysics.f90“à‚ÌƒTƒuƒ‹[ƒ`ƒ“net_radiationj‚Å‚ÍA‰¼‘z—Ñ•ª‚É‹zû‚³‚ê‚é’Z”g•úË—Ê‚ğA–Ø–{‚Æ‘–{‚Ì—tŒQ‚É‚æ‚é•úËŒ¸Š—¦iir_tree‚Æir_grassj‚ğ—p‚¢‚ÄA—tŒQ‚Æ“yë‚É‹zû‚³‚ê‚é‰æ•ª‚É•ª”z‚·‚éB‚±‚Ìir_tree‚Æir_grass‚ÍA–Ø–{‚Æ‘–{‚Ì—tŒQ‚Ì…•½•ûŒü‚Ì\‘¢‚ğ•½‹Ï‰»‚µ‚Äˆµ‚¤ŠÈˆÕŒvZ‚É‚æ‚èZo‚µ‚Ä‚¢‚½B‚±‚Ì‚½‚ßAƒ•úËŒvZ‚ÆŒõ‡¬ŒvZ‚Æ‚ÌŠÔ‚ÅA—tŒQ‚É‹zû‚³‚ê‚é•úË—Ê‚É·‚ª¶‚¶‚Ä‚¢‚½B‚±‚Ì·‚ÍAƒcƒ“ƒhƒ‰‚âƒTƒoƒiˆæ‚Ì‚æ‚¤‚È…•½•ûŒü‚ÌLAI\‘¢‚ªŒ°’˜‚È’nˆæ‚É‚¨‚¢‚ÄA“Á‚É‘å‚«‚­‚È‚é‚Í‚¸‚Å‚ ‚éBir_tree‚Æir_grass‚ÌŒvZ•û–@‚ğ‰ü‘P‚·‚é‚±‚Æ‚É‚æ‚èA‚±‚Ì–µ‚‚ğ–³‚­‚µ‚½B
+‚±‚Ì•ÏX‚Ì‚Â‚¢‚Å‚ÉAˆÈ‰º‚Ì2•Ï”i‚¢‚¸‚ê‚àu÷Š¥‘wã‚ÌPAR^÷Š¥‘w‰º‚ÌPARv”äj‚ÌŒvZ•û–@‚à‰ü‘P‚µ‚½B
+  par_grass_rel(1:DivedG, 1:DivedG)
+  par_floor_rel(1:Dived, 1:Dived)
+—¼•Ï”‚ÍAŠe‘–{ƒZƒ‹‚ÆŠe–Ø–{’è’…ƒZƒ‹‚Ì’†S‚©‚ç‰”’¼•ûŒü‚ÌLAI‚ğ‹‚ßA‚»‚ê‚ğƒ‰ƒ“ƒxƒ‹ƒgEƒx[ƒ‹ŠÖ”‚É‘ã“ü‚·‚é‚±‚Æ‚ÅAŠÈˆÕ“I‚ÉZo‚µ‚Ä‚¢‚éB‚±‚ÌŠÈˆÕŒvZ•û®‚Í•Û‚µ‚½‚Ü‚ÜApar_grass_rel‚Æpar_floor_rel‚Ì•½‹Ï’l‚ªAir_tree‚©‚çŒvZ‚³‚ê‚é’l‚Æˆê’v‚·‚é‚æ‚¤A’l‚ğ•â³‚³‚¹‚é‚æ‚¤‚É‚µ‚½B
+
+ˆÈã2ƒJŠ‚Ìd—l•ÏX‚É”º‚¤ƒR[ƒhã‚Ì•ÏX‚ÍAƒTƒuƒ‹[ƒ`ƒ“floor_radiation“à‚Ì•¡”‰ÓŠA‚¨‚æ‚ÑAƒTƒuƒ‹[ƒ`ƒ“ir_index‚Ì”p~B
+‚±‚ê‚ÉŠÖ˜A‚µ‚ÄASEIB‚©‚çNOAH‚É—^‚¦‚ç‚ê‚éGreen Vegetation Fraction (SHDFAC)‚ÆLAI of green vegetation area (XLAI)‚ÌŒvZ•û–@‚ğAã‚ÅŒvZ•û–@‚ğ‰ü‘P‚µ‚½par_floor_rel‚ğ—p‚¢‚é–‚ª‚Å‚«‚éƒIƒvƒVƒ‡ƒ“‚ğì¬‚µ‚½BÀ‘••”•ª‚ÍAmain.f90‚Ü‚½‚Ímain_point.f90‚Ì480s•t‹ßB
+Sppasksya-pad‚Å‚ÌÀsŒ‹‰Ê‚Å‚ÍA‰ÄŠú‚ÌGreen Vegetation Fraction‚ª¬‚³‚­‚È‚Á‚Ä‚µ‚Ü‚Á‚½–‚É‚æ‚èAŠˆ“®‘w[‚ª‚©‚È‚è[‚­‚È‚Á‚Ä‚µ‚Ü‚Á‚½‚Ì‚ÅA‚³‚µ“–‚½‚èƒRƒƒ“ƒgƒAƒEƒg‚µ‚Ä‚¢‚éB‚±‚ÌGreen Vegetation Fraction‚ÌZo•û–@Aƒ‚ƒfƒ‹‚Ì•sŠmÀ«‚É‘å‚«‚È‰e‹¿‚ğ‚à‚½‚ç‚·‚Ì‚ÅA‹C‚ğ‚Â‚¯‚Ä‚¨‚­‚±‚ÆB
+
+(5) ‚±‚ê‚à•úËŒvZ‚ÉŠÖ‚·‚é•ÏXB÷Š¥ƒŒƒCƒ„[‚É•ª”z‚³‚ê‚é’¼’BŒõ‹­“x‚ÌŒvZ‚ÅA‰¼‘zƒpƒCƒv“à‚ÌLAI‚ÉæZ‚³‚ê‚éŒõŒ¸ŠŒW”‚ÍEK0‚Å‚Í‚È‚­‚ÄA‘¾—z‚“x‚Å•â³‚³‚ê‚½’l‚Å‚ ‚éeK‚ğg—p‚·‚æ‚¤‚É‚µ‚½B’¼’BŒõ‹­“x‚ÌŒvZ‚Å‚ÍA‰¼‘zƒpƒCƒv‚ğ‘¾—z‚Ì“ì’†‚“x‚ÉŒü‚¯‚ÄL’£‚³‚¹A‚±‚ÌƒpƒCƒv‚ÉŠÜ‚Ü‚ê‚é—t–ÊÏ‚ğ÷Š¥’f–ÊÏ‚ÅœZ‚µ‚½LAI‚ğŒvZ‚É—p‚¢‚é‚ªAÀÛ‚ÌŒvZ‚ÍƒpƒCƒv‚ğL’£‚³‚¹‚é‚ÆŒ¾‚¤‚æ‚è‚àAd‚Ë‚½ƒRƒCƒ“‚ğ‚¸‚ç‚·ƒCƒ[ƒW‚Å‚ ‚èA‚±‚Ìê‡ƒRƒCƒ“‚Ì‘ÌÏ‚Í•Ï‚í‚ç‚È‚¢‚Ì‚ÅeK‚ğ—p‚¢‚é‚Ì‚ª“KØ‚Å‚ ‚éB
+’†ˆä‘¾˜Y”mi–¼ŒÃ‰®‘åŠwISEEj‚Ìw“E‚ÉŠî‚Ã‚­•ÏXB
+
+(6) ‰¼‘zƒpƒCƒv‚ğL’£‚³‚¹‚éŠp“x‚ğAu0.86~“ì’†‚“xv‚©‚çu“ì’†‚“xv‚É•ÏXB‚±‚Ìu0.86~“ì’†‚“xv‚Æ‚ÍA‘¾—z‚“x‚Ì“ú•Ï‰»‚ğSinA‘¾—zŒõ‹­“x‚Ì“ú•Ï‰»‚ğSin^2‚Å‹ß—‚µ‚½‚Æ‚«‚ÉAˆê“ú‚Ì‘¾—zŒõƒGƒlƒ‹ƒM[‚ğã‰º‚Å“ñ“™•ª‚·‚éŠp“x‚Æ‚µ‚Ä“±“ü‚µ‚½‚à‚ÌBÀÛ‚É‚ÍŒvZƒ~ƒX‚ª‚ ‚èA³‚µ‚­‚Í0.91B‚ ‚Ü‚è“ì’†‚“x‚Æ•Ï‚í‚ç‚È‚¢‚µAˆê“ú‚ğ‘ã•\‚·‚é‘¾—z‚“x‚ğ‚¢‚©‚ÉZo‚·‚é‚©‚É‚Â‚¢‚Ä‚ÍA‘½‚­‚Ì‰¼’è‚âl‚¦•û‚ª“ü‚Á‚Ä‚­‚é‚Ì‚ÅA‚±‚±‚ÍƒVƒ“ƒvƒ‹‚É“ì’†‚“x‚ğg‚¤‚æ‚¤‚É‚µ‚½B
+’†ˆä‘¾˜Y”mi–¼ŒÃ‰®‘åŠwISEEj‚Ìw“E‚ÉŠî‚Ã‚­•ÏXB
+
+(7) u÷Š¥’f–ÊÏ‚ª1”NŠÔ‚ÉŠg‘å‚Å‚«‚é‚Ì‚ÍÅ‘å1.5”{‚Ü‚Åv‚Æ‚¢‚¤‰¼’è‚ğ“ü‚ê‚½B
+metabolic.f90‚ÌƒTƒuƒ‹[ƒ`ƒ“growth_trunkÅ‰º•”‚ÉAˆÈ‰º‚ÌƒR[ƒh‚ªŒ©‚Â‚©‚éB
+  x = min( x, PI*CD_max(p)*CD_max(p)/4.0           )
+  x = min( x, PI*radius_limit(no)*radius_limit(no) )
+  x = max( x, 0.001                                )
+‚±‚±‚Ì’¼‰º‚ÉŸ‚Ì1s‚ğ‘}“ü‚µ‚½B
+  x = min( x, crown_area(no) * 1.5                 )
+
+(8) ÷Š¥’f–ÊÏ1•½•ûm‚ ‚½‚è‚Ì”NNPP‚ªA10gDM‚É–‚½‚È‚©‚Á‚½ŒÂ‘Ì‚Í”N5%‚Æ‚¢‚¤‚Šm—¦‚Å€–S‚³‚¹‚é‚æ‚¤‚É‚µ‚½B‚±‚Ìd—l‚ğÀ‘•‚µ‚½‰ÓŠ‚ÍAƒTƒuƒ‹[ƒ`ƒ“mortality’†‚ÌˆÈ‰º‚ÌsB
+  !Trees die immediately if its annual NPP per crown cross-section area is less than 10gDM/yr/m2
+  if ( mort_regu1(no) / crown_area(no) < 10.0 .and. age(no) > 3 ) mort_total=0.05
+
+****** Technical Issues
+(1) ƒXƒsƒ“ƒAƒbƒvƒtƒ@ƒCƒ‹‚ğƒoƒCƒiƒŠ‚Åo—Í‚·‚é‚æ‚¤‚É‚µ‚½B‚Ü‚½A‘¶İ‚·‚éPFT‚Ì‚İA•Ï”‚ğo—Í‚·‚é‚æ‚¤‚É‚µ‚½B‚±‚ê‚ç‚É”º‚¢AƒXƒsƒ“ƒAƒbƒvƒtƒ@ƒCƒ‹‚Ì‘å‚«‚³‚Í–ñ1/3‚Ù‚Ç‚É‚È‚Á‚½B
+‚±‚Ì•ÏX‚É”º‚¢Aƒ_ƒCƒŒƒNƒgƒAƒNƒZƒX‚Ìrecl‚ğword’PˆÊ‚Å‚Í–³‚­byte’PˆÊ‚Æ‚µ‚½B‚»‚Ì‚½‚ßAintel fortran‚Ìê‡‚É‚ÍAŸ‚ÌƒRƒ“ƒpƒCƒ‹ƒIƒvƒVƒ‡ƒ“‚ğ•t‚¯‚é•K—v‚ª¶‚¶‚½B
+-assume byterecl
+
+(2) •Ï”co2atm‚ğƒTƒuƒ‹[ƒ`ƒ“output_for_viewer‚ÅŒ1“x‘‚«o‚·‚æ‚¤‚É‚µ‚½Bco2atm‚ÍƒOƒ[ƒoƒ‹•Ï”‚È‚Ì‚ÅA•ÏX‰ÓŠ‚ÍA‚±‚ÌƒTƒuƒ‹[ƒ`ƒ“‚Ì‚İB‚±‚Ìƒo[ƒWƒ‡ƒ“‚É‘Î‰‚µ‚½SEIB-Viewer“ú–{Œê”Å‚ÉA‚±‚ÌCO2”Z“x‚Ì•ÏX‚ğ•\¦‚·‚é‹@”\‚ğ’Ç‰Á‚µ‚½B
+
+(3) “ü—Í‹CÛƒf[ƒ^‚ÉA“yë‰·“x‚ª‚ ‚Á‚Ä‚à‚È‚­‚Ä‚àÀs‚Å‚«‚é‚æ‚¤‚É‚µ‚½B“yë‰·“xƒf[ƒ^‚Ì–³‚¢‚Æ‚«‚É‚ÍA©“®“I‚É‹C‰·ƒf[ƒ^‚Å‘ã‘Ö‚·‚éBNOAH-LSM‚ğactivate‚µ‚Ä‚¢‚é‚É‚ÍA’n‰·‚ÍŒvZ‚³‚ê‚é‚Ì‚ÅA‚»‚Ìê‡‚Í“ü—Í‚³‚ê‚½’n‰·‚ÍŠÖŒW‚È‚¢B
+
+****** Bug fixes
+(1) randf()‚ªA‰‰ñ‚ÉŒÄ‚Ño‚³‚ê‚é‚Æ0.000‚ğo—Í‚µ‚Ä‚µ‚Ü‚¤B‚»‚Ì‚½‚ßAƒXƒsƒ“ƒAƒbƒv’¼Œã‚É‚Í•K‚¸R‰Î–‚ª‹N‚«‚Ä‚µ‚Ü‚Á‚Ä‚¢‚½B‚±‚ê‚ğ‘j~‚·‚é‚½‚ß‚Éinitialize.f90‚Årandf()‚ğˆê“xŒÄ‚Ño‚·–‚É‚µ‚½
+
+(2) Subroutine photosynthesis‚Ì‘–{‚ÌŒõ‡¬‚ğs‚í‚¹‚éƒ‹[ƒv“à‚ÉAˆÈ‰º‚Ìƒgƒ‰ƒbƒv‚ğ“ü‚ê‚½B‘–{‚ÌDaily GPP‚ÉNaN‚ª“ü‚Á‚Ä‚¢‚é‚±‚Æ‚ª‚ ‚Á‚ÄiŒ´ˆö•s–¾jA‚±‚ê‚ÅŠeí‚ÌŒvZ‚ª”j’]‚·‚é‚±‚Æ‚ª‚ ‚Á‚½‚½‚ßB
+uif ( x .ne. x ) cycle !NaN detectionv
+
+ã‹L‚ÌƒoƒOƒtƒBƒbƒNƒX‚Ì‰ß’ö‚ÅAå‚Émetabolic.f90“à‚Ì•¡”‰ÓŠ‚ÅAlai_grass(i,j)‚Ü‚½‚Ígmass_grass(i,j)‚ªu<=0.0v‚Ì‚ÉAŒvZ‚ğƒXƒLƒbƒv‚³‚¹‚éƒgƒ‰ƒbƒv‚ğ“ü‚ê‚½B“Á‚Éˆ«‚³‚Í‚µ‚È‚¢‚Æv‚í‚ê‚é‚Ì‚ÅA‚»‚Ì‚Ü‚Ü‚É‚µ‚Ä‚ ‚éB
+
+
+****** ver2.81 -> ver2.82 ******
+This is a minor update for fixing bugs, but its influence on the decomposition rate of Soil Organic Matter (SOM) is vast. For detail, please refer item (1).
+Note that items (3)~(8) were reported by Dr. Takashi NAKAMURA (@Tokyo Institute of Technology). Thanks.
+
+(1) @metabolic.f90, line1765
+The fixed parameter 66.02 in the previous codes were replaced by 56.02. This is just only a typo when I cited it from a literature, but I have to say its influence on the SOM is vast. Under the new code, potential decomposition rate of SOM becomes nearly double compared to the old codes. Therefore, new calibration would be required for reproducing SOM and carbon flux from soil. If you want to avoid it, I suggest to set back it the old value, 66.02.
+
+(2) @etc.f90, line60~69
+Changed computation method for variables tmp_coldest_20yr_ave and tmp_hottest_20yr_ave, during the first 20 years after spin-up.
+For applying climatic envelopes in computing mortality of woody PFTs, the model applies running means of air temperature of coldest month and/or hottest month during the last 20 years (tmp_coldest_20yr_ave and tmp_hottest_20yr_ave in the code). However, at the first 19 years of the simulation, the model employs running means during all simulated years. Therefore, stochastic variability of the two variables are much higher at the beginning of the simulation.
+This feature maintained when simulation starts from spin-up files, resulting in catastrophic death of some woody PFTs, if they exist on areas with marginal climatic environment for existence. To avoid such artifact, I modified the code so that running means during the last 20 years are employed even if simulation starts from spin-up files.
+
+(3) @etc.f90, line87~91
+Changed computation method for the variable gdd_20yr_ave during the first 20 years after spin-up. Same problem existed here.
+
+(4) @main.f90, Line 245
+    Before: Call radiation (LAT, cloud)
+    After : Call radiation (LAT, cloud_Today)
+
+(5) @main.f90, Line 271
+    Before: Call fire_regime2 (wind)
+    After : Call fire_regime2 (wind_Today)
+
+(6) @main.f90, Line 396
+    Before: cloud, prec_Today, humid_Today,   [The rest is omitted]
+    After : cloud_Today, prec_Today, humid_Today,   [The rest is omitted]
+
+(7) @main.f90, Line 401
+    Before: cloud, prec_Today, humid_Today,   [The rest is omitted]
+    After : cloud_Today, prec_Today, humid_Today,   [The rest is omitted]
+
+(8) @population_regu.f90, Lines 230-233
+    Before:
+    do while ( tree_exist(new) )
+        new = new + 1
+    end do
+    if ( new > Max_no ) return
+
+    After :
+    do while ( tree_exist(new) )
+        new = new + 1
+    if ( new > Max_no ) return
+    end do
+
+
 
 ****** ver2.80 -> ver2.81 ******
 (1) Bug Fix1
@@ -19,8 +143,8 @@ For the variable "dlen", which is the day length in a day, we set the maximum va
 
 (3) Bug Fix3
 * Line 286 of the module.f90
-   Before: x = 2060.0 * ((ALM3(pft)/1000000.0)**1.036) * ((dbh*100)**2.179) 
-   After : x = 207.0 * ((ALM3(pft)/1000000.0)**1.036) * ((dbh*100)**2.179) 
+   Before: x = 2060.0 * ((ALM3(pft)/1000000.0)**1.036) * ((dbh*100)**2.179)
+   After : x = 207.0 * ((ALM3(pft)/1000000.0)**1.036) * ((dbh*100)**2.179)
 This error makes African-woody-PFTs much shorter that they have to be. But, it would not deliver essential effects on the simulation result except canopy height. This is because SEIB-DGVM assumes only African-woody-PFTs can establish in the African continent, and thus its influences on competition among trees should be limitted.
 
 
@@ -49,8 +173,8 @@ Nikolaeva, N. V., T. C. Maximov, and A. P. Maximov (2004), Diurnal photosynthesi
 
 * @Line315 of physics.f90 (Within the Subroutine waterbudget)
 I corrected the equation to calculate vaporization heat at 1atm. Previous equation assumes that no vaporization occurs until water temperature reaches to 100 C. I thanks for Dr. Taro NAKAI (Nagoya Univ.) for pointing out this mistake.
-   Before: lh = 2259 + 4.184 * (100-tmp_air)
-   After : lh = 2500.25 - 2.365 * tmp_air   ! Fritschen and Gay (1979)
+  Before: lh = 2259 + 4.184 * (100-tmp_air)
+  After : lh = 2500.25 - 2.365 * tmp_air   ! Fritschen and Gay (1979)
 
 * @L322 of physics.f90 (Within the Subtourine waterbudget )
 The psychrometer constant is replaced by the psychrometer coefficient, which is a function of air pressure and latent heat of water vaporization.
@@ -73,10 +197,9 @@ Koike, T., et al. (2000). "Photosynthetic characteristics of Dahurian larch, Sco
 
 (3) Other technical modifications
 * In the previous codes, following variables, all of which are function of only latitude and day of year, are computed every simulation. For efficient computation, this code compute them only once at the beginning of the simulation.
-   sl_hgt           (solar hight at midday)
-   dlen             (day length)
-   rad_stratosphere (shortwave radiation at the atmosphere-top)
-  
+  sl_hgt           (solar hight at midday)
+  dlen             (day length)
+  rad_stratosphere (shortwave radiation at the atmosphere-top)
 * For efficient computation, SEIB calculates photosynthesis rate for each of 10 PAR (Photothynthesis Active Radiation) class. Instead of directory writing the number "10" in the code as was in the previous versions, I give it to a newly introduced constant "MaxParClass", which is defined in the module.f90.
 
 * In the previous versions, variables "radnet_vege" and "radnet_soil" are, respectively, defined as canopy and soil surface net radiations at the MIDDAY. From this version, they are provided values of the DAYTIME means. This is for simplifying the code for calculating transpiration and evaporation
@@ -95,8 +218,8 @@ I introduced new parameter, which defined the number of soil layers
 
 (4) Bug Fix
 * Line 442 of the output.f90
-   Before:  sum(flux_ic_RunningRecord(:)), ',', & !19 Runoff (mm year-1)
-   After:   sum(flux_ro_RunningRecord(:)), ',', & !19 Runoff (mm year-1)
+  Before:  sum(flux_ic_RunningRecord(:)), ',', & !19 Runoff (mm year-1)
+  After:   sum(flux_ro_RunningRecord(:)), ',', & !19 Runoff (mm year-1)
 This bug write intercepted precipitation instead of runoff-water in the output_annual.txt. This bug does not affect simulation itself
 
 
@@ -173,21 +296,21 @@ Above change in latent heat resulted in a reduction of evapotranspiration rate. 
 * We replaced saturation-point (W_sat) with field-capacity (W_fi) for the calculation of soil wetness.
   @Subroutine fire_regime
   After
-     x = Frac_Moisture_litter * pool_w1_RunningRecord(1) / (Depth*W_fi)
-     fire_factor = exp( -PI * ((x/moist_factor)**2) )
+    x = Frac_Moisture_litter * pool_w1_RunningRecord(1) / (Depth*W_fi)
+    fire_factor = exp( -PI * ((x/moist_factor)**2) )
 
   Before
-     x           = pool_w1_RunningRecord(1) / (Depth*W_sat)
-     fire_factor = exp( -PI * ((x/moist_factor)**2) )
+    x           = pool_w1_RunningRecord(1) / (Depth*W_sat)
+    fire_factor = exp( -PI * ((x/moist_factor)**2) )
 
   @SUBROUTINE decomposition
   After
-     x = (sum(pool_w(1:5))/5.0) / W_fi / Depth
-     effect_mois = 0.25 + 0.75 * x
+    x = (sum(pool_w(1:5))/5.0) / W_fi / Depth
+    effect_mois = 0.25 + 0.75 * x
 
   Before
-     x = (sum(pool_w(1:5))/5.0) / W_sat / Depth
-     effect_mois = 0.25 + 0.75 * x
+    x = (sum(pool_w(1:5))/5.0) / W_sat / Depth
+    effect_mois = 0.25 + 0.75 * x
 
 * Previous code allows African Woody PFTs (PFT number = 5 and 6) to establish outside of the African continent. We changed the rule so that they can only establish within African continent.
 
@@ -380,7 +503,7 @@ flux_c_uptake_RR !carbon uptake   due to photosynthesis
 flux_c_mnt_RR    !carbon emission due to maintenance   respiration
 flux_c_gro_RR    !carbon emission due to growth        respiration
 flux_c_htr_RR    !carbon emission due to heterotrophic respiration
-flux_c_fir_RR    !carbon emission due to fire incident        
+flux_c_fir_RR    !carbon emission due to fire incident      
 
 * A variable lai_opt_grass was deleted. Where this variable was used, new code refers lai_opt_grass_RunningRecord.
 
@@ -397,7 +520,7 @@ flux_c_fir_RR    !carbon emission due to fire incident
 * A variable tmp_soil_month_ave (30days running average of tmp_soil) was deleted. Where this variable was used, corresponding variable was generated from tmp_soil_RunningRecord.
 
 * A variable pool_litter (pool of litter carbon) was split into following 5 compartments.
-pool_litter_trunk !litter pool in a stand (trunk of woody PFTs)    
+pool_litter_trunk !litter pool in a stand (trunk of woody PFTs)  
 pool_litter_leaf  !litter pool in a stand (leaves of woody PFTs)
 pool_litter_root  !litter pool in a stand (fine root of woody PFTs)
 pool_litter_ag    !litter pool in a stand (aboveground of grass)
@@ -536,11 +659,11 @@ ba  : stem basal area at breast height (m2)
 (1-3) Crown depth (m) : min [10, tree_height]
 (1-4) Needle dry weight (g) : 330 + 50580 * (dbh^2)
 (1-5) Trunk dry weight (kg) : select larger value from the following equations
-     1.5 (467*ba*10^4 - 11300)
-     190*((100*dbh)^1.7) + 42.8*((100*dbh)^1.79) + 171*((100*dbh)^1.67)
+    1.5 (467*ba*10^4 - 11300)
+    190*((100*dbh)^1.7) + 42.8*((100*dbh)^1.79) + 171*((100*dbh)^1.67)
 (1-6) Sapwood diameter (m) : min [dbh, 0.0188]
 (1-7) Resource for producing trunk is diminished by multiplying following reduction factor, which depends on dbh. This equation assumes that stem growth efficiency becomes lower when dbh approaches to its maximum limit at 0.5m. The reduced resource is consumed by maintenance respiration.
-     1.0 - (dbh/0.5)^2
+    1.0 - (dbh/0.5)^2
 
 ( 2 ) Leaf phenology of BoNS
 (2-1) Foliation phase starts when sum of air temperature above 4.1 degree Celsius  from January 1 exceeds 65.
@@ -605,7 +728,7 @@ These updates are just for avoiding possible technical problems under different 
 ****** ver1.40 -> ver1.41 ******
 ‚±‚ê‚Ü‚Å”M‘Ñ«í—ÎL—t÷iTrBEj‚Í‚Pí—Ş‚Ì‚İ‚ğ‰¼’è‚µ‚Ä‚½‚ªA‚±‚Ìƒo[ƒWƒ‡ƒ“‚©‚ç‚Sí—Ş‚É‘‚â‚µ‚½B‚±‚ê‚ç‚Sí—Ş‚ÌPFT‚ÍAƒpƒ‰ƒ[ƒ^[Life_type‚É1‚ğ—^‚¦‚é‚±‚Æ‚É‚æ‚Á‚Ä‹æ•Ê‚µA‘¼‚Ì–Ø–{PFT‚Æ‚ÍA“K—p‚³‚¹‚éƒAƒƒƒgƒŠ[‚È‚Ç‚Ì”ğŒ‚ª•ÏX‚³‚ê‚Ä‚¢‚éB‚±‚ê‚ç‚Ì•ÏX‚ÌÚ×‚ÍAŒ»İ€”õ’†‚Ì˜_•¶‚ªƒAƒNƒZƒvƒg‚³‚ê‚½Œã‚É‹LÚ‚·‚éB‚±‚ÌŠg’£‚Æ“¯‚ÉA‚¢‚­‚Â‚©‚Ìd—v‚ÈƒoƒOƒtƒBƒbƒNƒX‚ªs‚í‚ê‚½‚½‚ßAƒR[ƒh‚Ì‚İæ‚ÉŒöŠJ‚·‚éB
 
-     ` C³‚µ‚½•s‹ï‡ `
+    ` C³‚µ‚½•s‹ï‡ `
 
 œ‹CE’ïR‚Ìİ’è’l‚ğC³‚µ‚½i¦d—vIjB
 ‹CE’ïR‚Ìƒpƒ‰ƒ[ƒ^[’lGSb2‚ÉAˆÙí‚É‚‚¢’l‚ªİ’è‚³‚ê‚Ä‚¢‚½B“TŒ^“I‚È’l‚Æ‚µ‚ÄA5.0 hPa‚ğ‘SPFT‚É—^‚¦‚½i’A‚µAC4‘–{‚É‚Â‚¢‚Ä‚Í2.0‚ğ—^‚¦‚½jB
@@ -628,7 +751,7 @@ Leuning R (1995), A critical appraisal of a combined stomatal-photosynthesis mod
 
 œ•Ï”par_grass_RunningRecord‚ÍAÀ‚ÍRunning Record‚Å‚È‚©‚Á‚½‚Ì‚ğC³‚µ‚½i‚±‚ê‚ğ—˜—p‚µ‚½ŒvZ‚É‘Î‚µ‚Ä‚Í‰e‹¿‚µ‚È‚¢\‘¢‚Å‚ ‚Á‚½‚ªAŒã‚Å‰½‚©–â‘è‚ğ‹N‚±‚³‚È‚¢‚æ‚¤‚ÉC³‚µ‚½j
 
-     ` ‹@”\Šg’£‚Æ•ÏX `
+    ` ‹@”\Šg’£‚Æ•ÏX `
 
 œparameter.txt‚Åw’è‚³‚ê‚éPFTŒÅ—Lƒpƒ‰ƒ[ƒ^[Life_type‚Ì’è‹`‚ğ•Ï‚¦‚½B
 Life_type = 0, ˆÈ‰º‚ÌƒJƒeƒSƒŠ[‚É“ü‚ç‚È‚¢–Ø–{PFT
@@ -645,7 +768,7 @@ Life_type = 4, C4‘–{
 i—ájEst_year_change=50‚Æİ’è‚µ‚Ä100”NŠÔ‚ÌƒVƒ~ƒ…ƒŒ[ƒVƒ‡ƒ“‚ğÀs‚³‚¹‚é‚ÆAƒVƒ~ƒ…ƒŒ[ƒVƒ‡ƒ“50”N–ÚˆÈ~‚©‚ç’è’…ğŒ‚ª•Ï‰»‚·‚éB‚±‚ÌƒVƒ~ƒ…ƒŒ[ƒVƒ‡ƒ“‚Å¶¬‚³‚ê‚½spiunp.txt‚ğ“Ç‚İ‚ñ‚ÅƒŠƒXƒ^[ƒg‚µ‚½ê‡AÅ‰‚©‚ç•Ï‰»‚µ‚½’è’…ğŒ‚ª“K—p‚³‚ê‚ÄƒVƒ~ƒ…ƒŒ[ƒVƒ‡ƒ“‚ªÀs‚³‚ê‚éB
 
 œ‚±‚ê‚Ü‚Å‚ÍSUBROUTINE establish‚Å’è‹`‚³‚ê‚Ä‚¢‚½A’è’…‚ÉŠÖ‚·‚éƒpƒ‰ƒ[ƒ^[‚ğparameter.txt‚Åˆµ‚¤‚æ‚¤‚É‚µ‚½
-Est_scenario    (ˆÈ‘OƒTƒuƒ‹[ƒ`ƒ“‚Å’è‹`‚³‚ê‚Ä‚¢‚½'scenario')  
+Est_scenario    (ˆÈ‘OƒTƒuƒ‹[ƒ`ƒ“‚Å’è‹`‚³‚ê‚Ä‚¢‚½'scenario')
 Est_year_change (ˆÈ‘OƒTƒuƒ‹[ƒ`ƒ“‚Å’è‹`‚³‚ê‚Ä‚¢‚½'year_change')
 Est_pft_OnOff   (ˆÈ‘OƒTƒuƒ‹[ƒ`ƒ“‚Å’è‹`‚³‚ê‚Ä‚¢‚½'est_switch')
 Est_frac_random (ˆÈ‘OƒTƒuƒ‹[ƒ`ƒ“‚Å’è‹`‚³‚ê‚Ä‚¢‚½'frac_random_est')
@@ -669,7 +792,7 @@ pool_grass_dn ‘–{PFTs‚Ì’n‰º•”E’™‘ ƒoƒCƒIƒ}ƒX
 ****** ver1.31 -> ver1.40 ******
 œver1.40‚ªSato et al (2007)‚ÌƒVƒ~ƒ…ƒŒ[ƒVƒ‡ƒ“‚ÉŒfÚ‚³‚ê‚Ä‚¢‚éƒo[ƒWƒ‡ƒ“‚Å‚ ‚éB‚È‚¨A”–î‚É‚æ‚èAver1.20 -> ver1.30‚Ås‚Á‚½Šô‚Â‚©‚Ì•ÏX“_‚ğŒ³‚É–ß‚µ‚½BŒ³‚É–ß‚µ‚½•ÏX‰ÓŠ‚ÍˆÈ‰º‚Ì’Ê‚è‚Å‚ ‚éB
 
-     `’ˆÓIŒ³‚É–ß‚µ‚½•ÏXƒŠƒXƒg‚Å‚·`
+    `’ˆÓIŒ³‚É–ß‚µ‚½•ÏXƒŠƒXƒg‚Å‚·`
 ›ƒtƒFƒmƒƒW[§Œä•û–@(TrBR)
 stat_water‚ª‚V“úŠÔ˜A‘±‚Å0.5‚ğ’´‚¦‚½‚Æ‚«‚ÉONANPPiPFT–ˆ‚Ì‡Œvj‚ª˜A‘±‚V“úŠÔ•‰‚É‚È‚Á‚½“ú‚ÉOFFB
 ›ƒtƒFƒmƒƒW[§Œä•û–@(TeBS)
@@ -850,11 +973,11 @@ z     •—‘¬‚ğ‘ª’è‚µ‚½‚‚³(m)B—˜—p‚µ‚½•—‘¬ƒf[ƒ^‚Ì’è‹`‚æ‚èz=h+10B
 ›stat_water‚Ì’è‹`A‚¨‚æ‚ÑŒõ‡¬‘¬“x‚Ì“yëŠÜ…—ÊˆË‘¶•”•ª‚Ì€(ce_water)‚ğ•Ï‚¦‚½B‚±‚ê‚É”º‚Á‚ÄAƒpƒ‰ƒ[ƒ^[Kwater(=0.5)‚ğíœ‚µ‚½B
 
 ‹ŒFstat_water =       P_root * (pool_w1/Depth1- W_wilt)/(W_fi-W_wilt) +
-                (1.0-P_root) * (pool_w2/Depth2- W_wilt)/(W_fi-W_wilt)
-   ce_water = stat_water^Kwater
+               (1.0-P_root) * (pool_w2/Depth2- W_wilt)/(W_fi-W_wilt)
+  ce_water = stat_water^Kwater
 
 VFstat_water = {P_root*(pool_w1/Depth1) + (1.0-P_root(p))*(pool_w2/Depth2) - W_wilt} / (W_mat-W_wilt), ‚½‚¾‚µstat_water=0.0`1.0B
-   ce_water = stat_water
+  ce_water = stat_water
 
 ‚Ü‚½A“yë‰·“x‚ª0‚ğ‰º‰ñ‚éê‡‚É‚ÍAstat_water‚Í0‚É‚È‚é‚Æ‰¼’è‚µ‚½B
 
@@ -877,8 +1000,8 @@ PmaxAGS_b2AP_establishAALM1AALM4ALA_max
 êŠFSUBROUTINE photosynthesis_conditionAce_tmp‚ğZo‚·‚é•”•ª
 ÇóF‹C‰·itmp_airj‚ªŒõ‡¬‰Â”\‚È‰·“x”ÍˆÍ‚ğˆí’E‚µ‚Ä‚àAŒõ–O˜aŒõ‡¬‘¬“xipmaxj‚ª0.0‚É‚È‚é‚Æ‚ÍŒÀ‚ç‚È‚©‚Á‚½Bi‚±‚ÌƒoƒO‚ÍAƒOƒŠ[ƒ“ƒ‰ƒ“ƒh‚É‘‚ª¶‚¦‚Ä‚¢‚é‚Ì‚ÅA‚±‚ê‚Í•Ï‚¾‚¢‚¤‚±‚Æ‚Å”­Œ©‚µ‚Ü‚µ‚½j
 ‘ÎˆFŸ‚Ì‚Qs‚ğ’Ç‰Á
-   if ( tmp_air <= Tmin(pft) ) ce_tmp=0.0
-   if ( tmp_air >= Tmax(pft) ) ce_tmp=0.0
+  if ( tmp_air <= Tmin(pft) ) ce_tmp=0.0
+  if ( tmp_air >= Tmax(pft) ) ce_tmp=0.0
 
 œ•¶Œ£
 ›Jones, H.G., 1992. Radiation. In: Jones, H.G., Plants and microclimate, 2nd ed, pp:9-44, Cambridge University press.
@@ -899,4 +1022,4 @@ spatial_calc.f90‚Ì190s–Ú‚©‚ç‚Ìƒ‹[ƒv‚ÌŒvZ“à—e‚ğ‰ü‘P‚µ‚Ü‚µ‚½BƒvƒƒOƒ‰ƒ€‘S‘Ì‚Å
 
 E‚±‚ê‚Ü‚ÅAPlant Functional Type‚Í10í—Ş‚Ì‚İ‚ğˆµ‚¤‚æ‚¤‚ÉƒR[ƒh‚ª‘‚©‚ê‚Ä‚¢‚Ü‚µ‚½B‚±‚Ìƒo[ƒWƒ‡ƒ“‚©‚ç‚ÍAmodule.f90‚Ì7s–ÚAPFT_no‚É‘ã“ü‚·‚é”š‚ğ•Ï‚¦‚é‚±‚Æ‚ÅA‚±‚ê‚ğ©—R‚É•ÏX‚·‚é‚±‚Æ‚ª‚Å‚«‚Ü‚·B‚È‚¨APFT‚Ì”‚ğ‘‚â‚µ‚½Û‚É‚ÍAparameter.txt’†‚Ìƒpƒ‰ƒ[ƒ^[‚ÌŒÂ”‚àA“¯—l‚É‘‚â‚·•K—v‚ª‚ ‚è‚Ü‚·B‚½‚¾‚µAC3‚ÆC4‘–{PFT‚ÍA‚»‚ê‚¼‚ê•K‚¸‚Pí—Ş‚¸‚Âİ’è‚µ‚Ä‚â‚é•K—v‚ª‚ ‚è‚Ü‚·B‚Â‚Ü‚èAŒ»ó‚ÌƒR[ƒh‚Å‚Í‘–{PFT‚Ì”‚ğ‘‚â‚µ‚àŒ¸‚ç‚µ‚à‚Å‚«‚Ü‚¹‚ñB‚Ü‚½A‚±‚ê‚Ü‚Å‚ÍC3‘–{‚ÌPFT”Ô†‚Í9AC4‘–{‚ÌPFT”Ô†‚Í10‚ÆŒÅ’è‚µ‚Ä‚¢‚Ü‚µ‚½‚ªA‚±‚ê‚à©“®‚Åparameter.txt’†‚Ìƒpƒ‰ƒ[ƒ^[Life_type‚Ìİ’è‚É‰‚¶‚ÄA©“®“I‚Éİ’è‚³‚ê‚é‚æ‚¤‚É‚È‚è‚Ü‚µ‚½B
 
-E‚»‚Ì‘¼A×‚©‚È‰ü•Ïi—áFo—Íƒtƒ@ƒCƒ‹‚Ìopen•¶‚ğoutput‚©‚çmain‚ÖAnamelist•¶‚ğmodule‚©‚çstart_point‚ÖA‚»‚ê‚¼‚êˆÚ“®jB 
+E‚»‚Ì‘¼A×‚©‚È‰ü•Ïi—áFo—Íƒtƒ@ƒCƒ‹‚Ìopen•¶‚ğoutput‚©‚çmain‚ÖAnamelist•¶‚ğmodule‚©‚çstart_point‚ÖA‚»‚ê‚¼‚êˆÚ“®jB

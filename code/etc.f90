@@ -60,21 +60,26 @@ SUBROUTINE stat_climate (prec, tmp_air, tmp_soil)
        end if
    end if
    
-   !update 20 year running mean
-   if (doy == Day_in_Year) then	!on the end of year
-      tmp_coldest_20yr_ave = sum( tmp_coldest_RunningRecord (1:min(20,year)) ) /min(20, year)
-      tmp_hottest_20yr_ave = sum( tmp_hottest_RunningRecord (1:min(20,year)) ) /min(20, year)
-   end if
+	!update 20 year running mean
+	if (doy == Day_in_Year) then	!on the end of year
+		if (Flag_spinup_read) then
+			tmp_coldest_20yr_ave = sum( tmp_coldest_RunningRecord (1:20) ) / 20.0
+			tmp_hottest_20yr_ave = sum( tmp_hottest_RunningRecord (1:20) ) / 20.0
+		else
+			tmp_coldest_20yr_ave = sum( tmp_coldest_RunningRecord (1:min(20,year)) ) /min(20,year)
+			tmp_hottest_20yr_ave = sum( tmp_hottest_RunningRecord (1:min(20,year)) ) /min(20,year)
+		endif
+	end if
    
 !annual sum of PAR intensity on establishment cells and grass cells
    if (doy==1) then
       sum_par_floor(:,:) = 0.0
    endif
    
-!   do i=1, Dived !!!>>>>>>>>>>>>TN:rm
-!   do j=1, Dived !!!>>>>>>>>>>>>TN:rm
-   do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
-   do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
+!   do i=1, Dived !!!>>>>>>>>>>>>>>>TN: rm
+!   do j=1, Dived !!!>>>>>>>>>>>>>>>TN: rm
+   do i=1, GRID%N_x !!!<<<<<<<<<<<<<<<TN: add
+   do j=1, GRID%N_y !!!<<<<<<<<<<<<<<<TN: add
       sum_par_floor(i,j) = sum_par_floor(i,j) + par_floor_rel(i,j) * par
    enddo
    enddo
@@ -83,7 +88,13 @@ SUBROUTINE stat_climate (prec, tmp_air, tmp_soil)
    if (doy==1) then
       gdd_20yr_RunningRecord(2:20) = gdd_20yr_RunningRecord(1:19)
       gdd_20yr_RunningRecord(1)    = gdd5
-      gdd_20yr_ave = sum( gdd_20yr_RunningRecord(1:min(20, year)) ) / min(20, year)
+      
+      if (Flag_spinup_read) then
+         gdd_20yr_ave = sum( gdd_20yr_RunningRecord(1:20) ) / 20.0
+      else
+         gdd_20yr_ave = sum( gdd_20yr_RunningRecord(1:min(20, year)) ) / real(min(20,year))
+      endif
+      
       gdd0         = 0.0
       gdd5         = 0.0
    end if
@@ -160,7 +171,7 @@ SUBROUTINE stat_carbon ()
    
    pool_c_RR (2:Day_in_Year) = pool_c_RR (1:Day_in_Year-1) 
    
-!   pool_c_RR (1) = (x+y+z) * C_in_drymass / Max_loc / Max_loc /1000.0 !!!>>>>>>>>>>>>TN:rm
+!   pool_c_RR (1) = (x+y+z) * C_in_drymass / Max_loc / Max_loc /1000.0  !!!>>>>>>>>>>>>TN:rm
    pool_c_RR (1) = (x+y+z) * C_in_drymass / real(GRID%Area) /1000.0 !!!<<<<<<<<<<<<TN:add
    !                        Unit conversion: (g DM / forest) -> (Kg C / m2)
    
@@ -189,6 +200,8 @@ SUBROUTINE stat_carbon ()
    flux_c_gro_RR   (2:Day_in_Year) = flux_c_gro_RR   (1:Day_in_Year-1) ; flux_c_gro_RR   (1) = 0.0
    flux_c_htr_RR   (2:Day_in_Year) = flux_c_htr_RR   (1:Day_in_Year-1) ; flux_c_htr_RR   (1) = 0.0
    flux_c_fir_RR   (2:Day_in_Year) = flux_c_fir_RR   (1:Day_in_Year-1) ; flux_c_fir_RR   (1) = 0.0
+   flux_c_lit_RR   (2:Day_in_Year) = flux_c_lit_RR   (1:Day_in_Year-1) ; flux_c_lit_RR   (1) = 0.0
+   flux_c_som_RR   (2:Day_in_Year) = flux_c_som_RR   (1:Day_in_Year-1) ; flux_c_som_RR   (1) = 0.0
    
    !Carbon flux for each organ (reset at the beggining of each day)
    resp_trunk(:) = 0.0
@@ -252,8 +265,8 @@ If (doy==150) then
    sum(gmass_leaf(:,:)) +sum(gmass_root(:,:)) +sum(gmass_available(:,:)) +sum(gmass_stock(:,:))
    
    !unit conversion ( gDM/forest -> gDM/m2 )
-!   sumup(:) = sumup(:) / Max_loc / Max_loc !!!>>>>>>>>>>>>TN:rm
-   sumup(:) = sumup(:) / real(GRID%Area) !!!<<<<<<<<<<<<TN:add
+!   sumup(:) = sumup(:) / Max_loc / Max_loc !!!>>>>>>>>>>>>>>>TN: rm
+   sumup(:) = sumup(:) / real(GRID%Area) !!!<<<<<<<<<<<<<<<TN: add
    
    !update running record
    do p=1, PFT_no
@@ -275,8 +288,8 @@ Endif
    enddo
    
    do p = 1, PFT_no
-!      lai_each(p) = lai_each(p) / Max_loc / Max_loc !!!>>>>>>>>>>>>TN:rm
-      lai_each(p) = lai_each(p) / real(GRID%Area) !!!<<<<<<<<<<<<TN:add
+!      lai_each(p) = lai_each(p) / Max_loc / Max_loc !!!>>>>>>>>>>>>>>>TN: rm
+      lai_each(p) = lai_each(p) / real(GRID%Area) !!!<<<<<<<<<<<<<<<TN: add
    end do
    
    !Calculate LAI for grass PFTs
@@ -286,8 +299,8 @@ Endif
       p=C4g_no
    endif
    
-!   lai_each(p) = sum(lai_grass(:,:)) / DivedG / DivedG   !!!>>>>>>>>>>>>TN:rm
-   lai_each(p) = sum(lai_grass(:,:)) / real(GRID%N_tot)  !!!<<<<<<<<<<<<TN:add
+!   lai_each(p) = sum(lai_grass(:,:)) / DivedG / DivedG !!!>>>>>>>>>>>>>>>TN: rm
+   lai_each(p) = sum(lai_grass(:,:)) / real(GRID%N_tot) !!!<<<<<<<<<<<<<<<TN: add
    
    !Update of LAI running record
    do p = 1, PFT_no
@@ -299,9 +312,6 @@ Endif
    do p = 1, PFT_no
       lai_RunningRecord(1,p) = lai_each(p)
    end do
-   
-   !Update total LAI
-   lai = sum(lai_each(:))
    
 !_____________ Leaf phenology
    do p = 1, PFT_no
@@ -463,15 +473,16 @@ SELECT CASE (dominant1)
 END SELECT
    
 !----------- Group 4 -----------
-   p = dominant1
    !10: xeric woodland / scrub
-   if (p==1 .or. p==2 .or. p==3 .or. p==4 .or. p==5 .or. p==6 .or. p==8) then
+   if (dominant1==1 .or. dominant1==2 .or. dominant1==3 .or. &
+       dominant1==4 .or. dominant1==5 .or. dominant1==6 .or. dominant1==8) then
    if (lai_max>=1.0 ) then
       biome = 10; return
    endif
    endif
    
-   if (p==7 .or. p==8 .or. p==10 .or. p==11 .or. p==12 .or. p==13 .or. p==14) then
+   if (dominant1==7 .or. dominant1==8 .or. dominant1==10 .or. &
+       dominant1==11 .or. dominant1==12 .or. dominant1==13 .or. dominant1==14) then
    if (lai_max>=1.5 ) then
       biome = 10; return
    endif
@@ -491,258 +502,478 @@ END SUBROUTINE biome_determine
 
 
 !*************************************************************************************************
-! output spinup files
+! Output spinup files
 !*************************************************************************************************
-SUBROUTINE spinup_out (Fn)
+SUBROUTINE spinup_out (Fn, NSOLD, CMC, SNOWH, SNEQV, T1, STC, SMC, SH2O)
+
 !_____________ Set variables
 !Namespace
-   USE data_structure
-   USE time_counter
-   USE vegi_status_current1
-   USE grid_status_current1
+	USE data_structure
+	USE time_counter
+	USE vegi_status_current1
+	USE grid_status_current1
 !!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
-   USE mod_grid
+	USE mod_grid
 !!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
-   implicit none
-   
+	implicit none
+	
 !Arguments
-   integer,intent(IN)::Fn !File I/O number
-   
+	integer,intent(IN)::Fn !File I/O number
+	
+	!variables for NOAH-LSM
+	INTEGER,intent(IN)::NSOLD       !NumSoil !Max number of soil layer
+	REAL   ,intent(IN)::CMC         !Canopy water content (m)
+	REAL   ,intent(IN)::SNOWH       !Actual snow depth (m)
+	REAL   ,intent(IN)::SNEQV       !Water equiv snow depth (m)
+	REAL   ,intent(IN)::T1          !Initial skin temperature (K)
+	REAL   ,intent(IN)::STC(NSOLD)  !SOIL TEMP (K)
+	REAL   ,intent(IN)::SMC(NSOLD)  !TOTAL SOIL MOISTURE CONTENT (VOLUMETRIC FRACTION)
+	REAL   ,intent(IN)::SH2O(NSOLD) !UNFROZEN SOIL MOISTURE CONTENT (VOLUMETRIC FRACTION)
+	
 !Local variables
-   integer           n ,i, j, k
-   character(len=3)  string_pft, string_year, string_dived, string_divedG
+	integer no, p, i, j
+	integer pft_available_max
+	integer pft_available (1:PFT_no)
    
-!_____________ preparation for strings
-i = int(  Day_in_Year       /100 ) ; string_year  (1:1)= char(i+48)
-j = int( (Day_in_Year-i*100)/ 10 ) ; string_year  (2:2)= char(j+48)
-k =    (  Day_in_Year-i*100-j*10 ) ; string_year  (3:3)= char(k+48)
-
-i = int(  PFT_no            /100 ) ; string_pft   (1:1)= char(i+48)
-j = int( (PFT_no     -i*100)/ 10 ) ; string_pft   (2:2)= char(j+48)
-k = int(  PFT_no     -i*100-j*10 ) ; string_pft   (3:3)= char(k+48)
-
-!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:rm
-!i = int(  Dived             /100 ) ; string_dived (1:1)= char(i+48)
-!j = int( (Dived      -i*100)/ 10 ) ; string_dived (2:2)= char(j+48)
-!k = int(  Dived      -i*100-j*10 ) ; string_dived (3:3)= char(k+48)
-!
-!i = int(  DivedG            /100 ) ; string_divedG(1:1)= char(i+48)
-!j = int( (DivedG     -i*100)/ 10 ) ; string_divedG(2:2)= char(j+48)
-!k = int(  DivedG     -i*100-j*10 ) ; string_divedG(3:3)= char(k+48)
-!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:rm
-!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add —Ç‚­•ª‚©‚ç‚ñ!!‚±‚ê‚Å‚¢‚¢‚Ì‚©—vŒŸ“¢
-i = int(  GRID%N_x          /100 ) ; string_dived (1:1)= char(i+48)
-j = int( (GRID%N_x   -i*100)/ 10 ) ; string_dived (2:2)= char(j+48)
-k = int(  GRID%N_x   -i*100-j*10 ) ; string_dived (3:3)= char(k+48)
-
-i = int(  GRID%N_x          /100 ) ; string_divedG(1:1)= char(i+48)
-j = int( (GRID%N_x   -i*100)/ 10 ) ; string_divedG(2:2)= char(j+48)
-k = int(  GRID%N_x   -i*100-j*10 ) ; string_divedG(3:3)= char(k+48)
-!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
-
 !_____________ Main part1 (variables of vegi_status_current1)
-write (Fn,*) Spinup_year+Simulation_year  !Variable 'Spinup_year' for the continued simulation
-write (Fn,*) tree_exist(:)                !This variable must be read at the beggining
-
-write (Fn,'(i5)')       biome
-write (Fn,'(f10.5,1x)') lai
-
-write (Fn,*)                             phenology      (:)
-write (Fn,*)                             pft_exist      (:)
-write (Fn,'('//string_pft//'(i7  ,1x))') dfl_leaf_onset (:)
-write (Fn,'('//string_pft//'(i7  ,1x))') dfl_leaf_shed  (:)
-write (Fn,'('//string_pft//'(f7.3,1x))') stat_water     (:)
-
-Do n=1, Max_no
-if (tree_exist(n)) then
-   write (Fn,'(6(i5,1x) )'  ) pft(n), age(n), height(n), bole(n), height_limit(n), flag_suppress(n)
-   write (Fn,'(4(f10.5,1x))') dbh_heartwood(n), dbh_sapwood(n), crown_diameter(n), crown_area(n)
-   write (Fn,'(5(f10.5,1x))') bole_x(n), bole_y(n), crown_x(n), crown_y(n), radius_limit(n)
-   write (Fn,'(6(f12.2,1x))') la(n), mass_leaf(n), mass_trunk(n), mass_root(n), mass_stock(n), mass_available(n)
-   write (Fn,'(f12.3,1x, f10.5,1x, f10.8)') mort_regu1(n), mort_regu2(n), mort_regu4(n)
-   write (Fn,'(11(f10.5,1x))') npp_crowntop(n), npp_crownbottom(n,:)
-endif
-End do
-
-!Do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
-Do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
-   write (Fn,'('//string_divedG//'(f12.3,1x))') gmass_leaf      (i,:)
-   write (Fn,'('//string_divedG//'(f12.3,1x))') gmass_root      (i,:)
-   write (Fn,'('//string_divedG//'(f12.3,1x))') gmass_available (i,:)
-   write (Fn,'('//string_divedG//'(f12.3,1x))') gmass_stock     (i,:)
-   write (Fn,'('//string_divedG//'(f12.3,1x))') lai_grass       (i,:)
-End do
-
-!Do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
-!Do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
-Do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
-Do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
-   write (Fn,'(20(f5.2,1x))')  lai_opt_grass_RunningRecord(:,i,j)
-End do
-End do
-
-Do i=1, Day_in_Year
-   write (Fn, *)                             phenology_RunningRecord (i,:)
-   write (Fn,'('//string_pft//'(f10.1,1x))') npp_RunningRecord       (i,:)
-   write (Fn,'('//string_pft//'(f10.1,1x))') gpp_RunningRecord       (i,:)
-   write (Fn,'('//string_pft//'(f7.3,1x))' ) stat_water_RunningRecord(i,:)
-   write (Fn,'('//string_pft//'(f7.3,1x))' ) lai_RunningRecord       (i,:)
-End do
-
-Do i=1, 20
-   write (Fn,'('//string_pft//'(f10.3,1x))') mass_sum_RunningRecord(i,:)
-End do
-
-!_____________ Main part2 (variables of vegi_status_current2)
-write (Fn,'(2(i7,1x))'    ) dfl_fire, fire_number
-write (Fn,'(3(f10.5,1x))' ) tmp_coldest_20yr_ave, tmp_hottest_20yr_ave, gdd_20yr_ave
-write (Fn,'(3(f17.1,1x))' ) pool_litter_trunk, pool_litter_leaf, pool_litter_root
-write (Fn,'(4(f17.1,1x))' ) pool_litter_ag, pool_litter_bg, pool_som_int, pool_som_slow
-write (Fn,'(2(f17.1,1x))' ) pool_fuel_standT, pool_fuel_standG
-write (Fn,'(31(f10.2,1x))') pool_w(:), pool_snow
-
-write (Fn,'( 20(f7.2,1x))') gdd_20yr_RunningRecord    (:)
-write (Fn,'( 20(f6.2,1x))') tmp_coldest_RunningRecord (:)
-write (Fn,'( 20(f6.2,1x))') tmp_hottest_RunningRecord (:)
-write (Fn,'( 20(f6.2,1x))') tmp_ave_GrassGrowth_RR    (:)
-
-write (Fn,'('//string_year//'(f15.5,1x))') pool_c_RR (:)
-
-write (Fn,'('//string_year//'(f15.1,1x))') flux_c_uptake_RR (:)
-write (Fn,'('//string_year//'(f15.1,1x))') flux_c_mnt_RR    (:)
-write (Fn,'('//string_year//'(f15.1,1x))') flux_c_gro_RR    (:)
-write (Fn,'('//string_year//'(f15.1,1x))') flux_c_htr_RR    (:)
-write (Fn,'('//string_year//'(f15.1,1x))') flux_c_fir_RR    (:)
-
-write (Fn,'('//string_year//'(f10.5,1x))') flux_ro_RunningRecord(:)
-write (Fn,'('//string_year//'(f10.5,1x))') flux_ic_RunningRecord(:)
-write (Fn,'('//string_year//'(f10.5,1x))') flux_ev_RunningRecord(:)
-write (Fn,'('//string_year//'(f10.5,1x))') flux_tr_RunningRecord(:)
-
-write (Fn,'('//string_year//'(f6.2,1x))') tmp_air_RunningRecord (:)
-   Do i=1, NumSoil
-   write (Fn,'('//string_year//'(f6.2,1x))') tmp_soil_RunningRecord(:,i)
-   End do
-write (Fn,'('//string_year//'(f6.2,1x))') prec_RunningRecord    (:)
-write (Fn,'('//string_year//'(f6.2,1x))') ev_pot_RunningRecord  (:)
-write (Fn,'('//string_year//'(f6.1,1x))') par_RunningRecord     (:)
-write (Fn,'('//string_year//'(f6.1,1x))') pool_w1_RunningRecord (:)
+	!These two variables must be read at the beggining
+	write (Fn) &
+	pft_exist      (:), &
+	tree_exist     (:)   
+	
+	!List up available PFTs
+	i = 0
+	do p = 1, PFT_no
+		if (pft_exist(p)) then
+			i = i + 1
+			pft_available(i) = p
+		endif
+	enddo
+	pft_available_max = i
+	
+	write (Fn) &
+	Spinup_year+Simulation_year, & !Variable 'Spinup_year' for the continued simulation
+	biome                          
+	
+	if (pft_available_max >= 1) then
+		do p=1, pft_available_max
+			write (Fn)                         &
+			phenology      (pft_available(p)), &
+			dfl_leaf_onset (pft_available(p)), &
+			dfl_leaf_shed  (pft_available(p)), &
+			stat_water     (pft_available(p))   
+		enddo
+	endif
+	
+	Do no=1, Max_no
+	if (tree_exist(no)) then
+		write (Fn) &
+		pft            (no), &
+		age            (no), &
+		height         (no), &
+		bole           (no), &
+		height_limit   (no), &
+		flag_suppress  (no), &
+		dbh_heartwood  (no), &
+		dbh_sapwood    (no), &
+		crown_diameter (no), &
+		crown_area     (no), &
+		bole_x         (no), &
+		bole_y         (no), &
+		crown_x        (no), &
+		crown_y        (no), &
+		radius_limit   (no), &
+		la             (no), &
+		mass_leaf      (no), &
+		mass_trunk     (no), &
+		mass_root      (no), &
+		mass_stock     (no), &
+		mass_available (no), &
+		mort_regu1     (no), &
+		mort_regu2     (no), &
+		mort_regu4     (no), &
+!		MSR_plant      (no), &	! R-SEIB
+!		mort_yearly_total (no), &	! R-SEIB
+		npp_crowntop   (no), &
+		npp_crownbottom(no,:) 
+	endif
+	End do
+	
+!	do i=1, DivedG !!!>>>>>>>>>>>>>>>TN: rm
+	do i=1, GRID%N_x !!!<<<<<<<<<<<<<<<TN: add
+		write (Fn)             &
+		gmass_leaf      (i,:), &
+		gmass_root      (i,:), &
+		gmass_available (i,:), &
+		gmass_stock     (i,:), &
+		lai_grass       (i,:)   
+    enddo
+	
+!	do i=1, DivedG    !!!>>>>>>>>>>>>>>>TN: rm
+!    do j=1, DivedG !!!>>>>>>>>>>>>>>>TN: rm
+	do i=1, GRID%N_x    !!!<<<<<<<<<<<<<<<TN: add
+    do j=1, GRID%N_y  !!!<<<<<<<<<<<<<<<TN: add
+		write (Fn) lai_opt_grass_RunningRecord(:,i,j)
+	enddo
+	enddo
+	
+	do p=1, pft_available_max
+	do i=1, Day_in_Year
+		write (Fn)                                     &
+		phenology_RunningRecord (i, pft_available(p)), &
+		npp_RunningRecord       (i, pft_available(p)), &
+		gpp_RunningRecord       (i, pft_available(p)), &
+		stat_water_RunningRecord(i, pft_available(p)), &
+		lai_RunningRecord       (i, pft_available(p))   
+	enddo
+	enddo
+	
+	do p=1, pft_available_max
+	do i=1, 20
+		write (Fn) mass_sum_RunningRecord(i, pft_available(p))
+	enddo
+	enddo
+	
+!	! R-SEIB ***********************************
+!	do p=1,  pft_available_max
+!		write (Fn) &
+!			assim_rate0(pft_available(p),:), &
+!			gtc_rate0(pft_available(p),:), &
+!			assim_rate1(pft_available(p),:), &
+!			gtc_rate1(pft_available(p),:), &
+!			assim_rate2(pft_available(p),:), &
+!			gtc_rate2(pft_available(p),:), &
+!			assim_rate3(pft_available(p),:), &
+!			gtc_rate3(pft_available(p),:), &
+!			assim_rate4(pft_available(p),:), &
+!			gtc_rate4(pft_available(p),:), &
+!			assim_rate5(pft_available(p),:), &
+!			gtc_rate5(pft_available(p),:)
+!	enddo
+!	
+!	do i=1, DivedG
+!		write (Fn)             &
+!			asim_sat     (i,:), &
+!			asimlue      (i,:)
+!    enddo
+!	
+!	do no=1, Max_no
+!		if (tree_exist(no)) then
+!			write (Fn) &
+!				G_plant        (no), &
+!				G_p_pre        (no), &
+!				HF_plant       (no)
+!		endif
+!	enddo
+!	! R-SEIB end *******************************
+	
+!_____________ Main part2 (variables of grid_status_current1)
+	write (Fn) &
+	dfl_fire            , &
+	fire_number         , &
+	tmp_coldest_20yr_ave, &
+	tmp_hottest_20yr_ave, &
+	gdd_20yr_ave        , &
+	pool_litter_trunk   , &
+	pool_litter_leaf    , &
+	pool_litter_root    , &
+	pool_litter_ag      , &
+	pool_litter_bg      , &
+	pool_som_int        , &
+	pool_som_slow       , &
+	pool_fuel_standT    , &
+	pool_fuel_standG    , &
+	pool_w(:)           , &
+	pool_snow              
+	
+	write (Fn) &
+	gdd_20yr_RunningRecord    (:), &
+	tmp_coldest_RunningRecord (:), &
+	tmp_hottest_RunningRecord (:), &
+	tmp_ave_GrassGrowth_RR    (:)   
+	
+	write (Fn) &
+	pool_c_RR            (:), &
+	flux_c_uptake_RR     (:), &
+	flux_c_mnt_RR        (:), &
+	flux_c_gro_RR        (:), &
+	flux_c_htr_RR        (:), &
+	flux_c_fir_RR        (:), &
+	flux_c_lit_RR        (:), &
+	flux_c_som_RR        (:), &
+    flux_ro1_RunningRecord (:), &
+    flux_ro2_RunningRecord (:), &
+    flux_ic_RunningRecord  (:), &
+    flux_ev_RunningRecord  (:), &
+    flux_tr_RunningRecord  (:), &
+    flux_sl_RunningRecord  (:), &
+    flux_tw_RunningRecord  (:), &
+    flux_sn_RunningRecord  (:)   
+	
+	write (Fn) &
+	tmp_air_RunningRecord (:)
+!	tmp_0m_RunningRecord (:), &	! R-SEIB
+!	tmp_soil_RunningRecord(:)   
+	
+	do i=1, NumSoil
+		write (Fn) tmp_soil_RunningRecord(:,i)
+	enddo
+	
+	write (Fn)                 &
+	prec_RunningRecord    (:), &
+	ev_pot_RunningRecord  (:), &
+	par_RunningRecord     (:), &
+	pool_w1_RunningRecord (:)   
+!	soil_theta_RunningRecord (:)	! R-SEIB
+	
+!_____________ Main part3 (variables for NOAH-LSM)
+	write (Fn) &
+	CMC    , &
+	SNOWH  , &
+	SNEQV  , &
+	T1     , &
+	STC (:), &
+	SMC (:), &
+	SH2O(:)   
 
 END SUBROUTINE spinup_out
 
 
 
 !*************************************************************************************************
-! output spinup files
+! Input spinup files
 !*************************************************************************************************
-SUBROUTINE spinup_in (Fn)
+SUBROUTINE spinup_in (Fn, NSOLD, CMC, SNOWH, SNEQV, T1, STC, SMC, SH2O)
 
 !_____________ Set variables
 !Namespace
-   USE data_structure
-   USE time_counter
-   USE vegi_status_current1
-   USE grid_status_current1
+	USE data_structure
+	USE time_counter
+	USE vegi_status_current1
+	USE grid_status_current1
 !!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
-   USE mod_grid
+	USE mod_grid
 !!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
-   implicit none
-   
+	implicit none
+	
 !Arguments
-   integer,intent(IN)::Fn !File I/O number
-   
+	integer,intent(IN)::Fn !File I/O number
+	
+	!variables for NOAH-LSM
+	INTEGER,intent(IN) ::NSOLD       !NumSoil !Max number of soil layer
+	REAL   ,intent(OUT)::CMC         !Canopy water content (m)
+	REAL   ,intent(OUT)::SNOWH       !Actual snow depth (m)
+	REAL   ,intent(OUT)::SNEQV       !Water equiv snow depth (m)
+	REAL   ,intent(OUT)::T1          !Initial skin temperature (K)
+	REAL   ,intent(OUT)::STC(NSOLD)  !SOIL TEMP (K)
+	REAL   ,intent(OUT)::SMC(NSOLD)  !TOTAL SOIL MOISTURE CONTENT (VOLUMETRIC FRACTION)
+	REAL   ,intent(OUT)::SH2O(NSOLD) !UNFROZEN SOIL MOISTURE CONTENT (VOLUMETRIC FRACTION)
+	
 !Local variables
-   integer n ,i, j
-   
+	integer no, p, i, j
+	integer pft_available_max
+	integer pft_available (1:PFT_no)
+	
 !_____________ Main part1 (variables of vegi_status_current1)
-read (Fn,*) Spinup_year
-read (Fn,*) tree_exist(:)                !This variable must be read at the beggining
-
-read (Fn,*) biome
-read (Fn,*) lai
-
-read (Fn,*) phenology      (:)
-read (Fn,*) pft_exist      (:)
-read (Fn,*) dfl_leaf_onset (:)
-read (Fn,*) dfl_leaf_shed  (:)
-read (Fn,*) stat_water     (:)
-
-Do n=1, Max_no
-if (tree_exist(n)) then
-   read (Fn,*) pft(n), age(n), height(n), bole(n), height_limit(n), flag_suppress(n)
-   read (Fn,*) dbh_heartwood(n), dbh_sapwood(n), crown_diameter(n), crown_area(n)
-   read (Fn,*) bole_x(n), bole_y(n), crown_x(n), crown_y(n), radius_limit(n)
-   read (Fn,*) la(n), mass_leaf(n), mass_trunk(n), mass_root(n), mass_stock(n), mass_available(n)
-   read (Fn,*) mort_regu1(n), mort_regu2(n), mort_regu4(n)
-   read (Fn,*) npp_crowntop(n), npp_crownbottom(n,:)
-endif
-End do
-
-!Do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
-Do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
-   read (Fn,*) gmass_leaf      (i,:)
-   read (Fn,*) gmass_root      (i,:)
-   read (Fn,*) gmass_available (i,:)
-   read (Fn,*) gmass_stock     (i,:)
-   read (Fn,*) lai_grass       (i,:)
-End do
-
-!Do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
-!Do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
-Do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
-Do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
-   read (Fn,*) lai_opt_grass_RunningRecord(:,i,j)
-End do
-End do
-
-Do i=1, Day_in_Year
-   read (Fn,*) phenology_RunningRecord (i,:)
-   read (Fn,*) npp_RunningRecord       (i,:)
-   read (Fn,*) gpp_RunningRecord       (i,:)
-   read (Fn,*) stat_water_RunningRecord(i,:)
-   read (Fn,*) lai_RunningRecord       (i,:)
-End do
-
-Do i=1, 20
-   read (Fn,*) mass_sum_RunningRecord(i,:)
-End do
-
-!_____________ Main part2 (variables of vegi_status_current2)
-read (Fn,*) dfl_fire, fire_number
-read (Fn,*) tmp_coldest_20yr_ave, tmp_hottest_20yr_ave, gdd_20yr_ave
-
-read (Fn,*) pool_litter_trunk, pool_litter_leaf, pool_litter_root
-read (Fn,*) pool_litter_ag, pool_litter_bg, pool_som_int, pool_som_slow
-read (Fn,*) pool_fuel_standT, pool_fuel_standG
-read (Fn,*) pool_w(:), pool_snow
-
-read (Fn,*) gdd_20yr_RunningRecord    (:)
-read (Fn,*) tmp_coldest_RunningRecord (:)
-read (Fn,*) tmp_hottest_RunningRecord (:)
-read (Fn,*) tmp_ave_GrassGrowth_RR    (:)
-
-read (Fn,*) pool_c_RR (:)
-
-read (Fn,*) flux_c_uptake_RR (:)
-read (Fn,*) flux_c_mnt_RR    (:)
-read (Fn,*) flux_c_gro_RR    (:)
-read (Fn,*) flux_c_htr_RR    (:)
-read (Fn,*) flux_c_fir_RR    (:)
-
-read (Fn,*) flux_ro_RunningRecord(:)
-read (Fn,*) flux_ic_RunningRecord(:)
-read (Fn,*) flux_ev_RunningRecord(:)
-read (Fn,*) flux_tr_RunningRecord(:)
-
-read (Fn,*) tmp_air_RunningRecord (:)
-   Do i=1, NumSoil
-   read (Fn,*) tmp_soil_RunningRecord(:,i)
-   End do
-read (Fn,*) prec_RunningRecord    (:)
-read (Fn,*) ev_pot_RunningRecord  (:)
-read (Fn,*) par_RunningRecord     (:)
-read (Fn,*) pool_w1_RunningRecord (:)
-
+	!These two variables must be read at the beggining
+	read (Fn) &
+	pft_exist      (:), &
+	tree_exist     (:)   
+	
+	!List up available PFTs
+	i = 0
+	do p = 1, PFT_no
+		if (pft_exist(p)) then
+			i = i + 1
+			pft_available(i) = p
+		endif
+	enddo
+	pft_available_max = i
+	
+	read (Fn) &
+	Spinup_year, & !Variable 'Spinup_year' for the continued simulation
+	biome          
+	
+	if (pft_available_max >= 1) then
+		do p=1, pft_available_max
+			read (Fn)                         &
+			phenology      (pft_available(p)), &
+			dfl_leaf_onset (pft_available(p)), &
+			dfl_leaf_shed  (pft_available(p)), &
+			stat_water     (pft_available(p))   
+		enddo
+	endif
+	
+	Do no=1, Max_no
+	if (tree_exist(no)) then
+		read (Fn) &
+		pft            (no), &
+		age            (no), &
+		height         (no), &
+		bole           (no), &
+		height_limit   (no), &
+		flag_suppress  (no), &
+		dbh_heartwood  (no), &
+		dbh_sapwood    (no), &
+		crown_diameter (no), &
+		crown_area     (no), &
+		bole_x         (no), &
+		bole_y         (no), &
+		crown_x        (no), &
+		crown_y        (no), &
+		radius_limit   (no), &
+		la             (no), &
+		mass_leaf      (no), &
+		mass_trunk     (no), &
+		mass_root      (no), &
+		mass_stock     (no), &
+		mass_available (no), &
+		mort_regu1     (no), &
+		mort_regu2     (no), &
+		mort_regu4     (no), &
+!		MSR_plant      (no), &	! R-SEIB
+!		mort_yearly_total (no), &	! R-SEIB
+		npp_crowntop   (no), &
+		npp_crownbottom(no,:) 
+	endif
+	End do
+	
+!	do i=1, DivedG !!!>>>>>>>>>>>>>>>TN: rm
+	do i=1, GRID%N_x !!!<<<<<<<<<<<<<<<TN: add
+		read (Fn)             &
+		gmass_leaf      (i,:), &
+		gmass_root      (i,:), &
+		gmass_available (i,:), &
+		gmass_stock     (i,:), &
+		lai_grass       (i,:)   
+    enddo
+	
+!	do i=1, DivedG    !!!>>>>>>>>>>>>>>>TN: rm
+!    do j=1, DivedG !!!>>>>>>>>>>>>>>>TN: rm
+	do i=1, GRID%N_x    !!!<<<<<<<<<<<<<<<TN: add
+    do j=1, GRID%N_y  !!!<<<<<<<<<<<<<<<TN: add
+		read (Fn) lai_opt_grass_RunningRecord(:,i,j)
+	enddo
+	enddo
+	
+	do p=1, pft_available_max
+	do i=1, Day_in_Year
+		read (Fn)                                      &
+		phenology_RunningRecord (i, pft_available(p)), &
+		npp_RunningRecord       (i, pft_available(p)), &
+		gpp_RunningRecord       (i, pft_available(p)), &
+		stat_water_RunningRecord(i, pft_available(p)), &
+		lai_RunningRecord       (i, pft_available(p))   
+	enddo
+	enddo
+   
+	do p=1, pft_available_max
+	do i=1, 20
+		read (Fn) mass_sum_RunningRecord(i, pft_available(p))
+	enddo
+	enddo
+	
+!	! R-SEIB
+!	do p=1,  pft_available_max
+!		write (Fn) &
+!			assim_rate0(pft_available(p),:), &
+!			gtc_rate0(pft_available(p),:), &
+!			assim_rate1(pft_available(p),:), &
+!			gtc_rate1(pft_available(p),:), &
+!			assim_rate2(pft_available(p),:), &
+!			gtc_rate2(pft_available(p),:), &
+!			assim_rate3(pft_available(p),:), &
+!			gtc_rate3(pft_available(p),:), &
+!			assim_rate4(pft_available(p),:), &
+!			gtc_rate4(pft_available(p),:), &
+!			assim_rate5(pft_available(p),:), &
+!			gtc_rate5(pft_available(p),:)
+!	enddo
+!	
+!	do i=1, DivedG
+!		write (Fn)             &
+!			asim_sat     (i,:), &
+!			asimlue      (i,:)
+!    enddo
+!	
+!	do no=1, Max_no
+!		if (tree_exist(no)) then
+!			write (Fn) &
+!				G_plant        (no), &
+!				G_p_pre        (no), &
+!				HF_plant       (no)
+!		endif
+!	enddo
+!	
+!_____________ Main part2 (variables of grid_status_current1)
+	read (Fn)             &
+	dfl_fire            , &
+	fire_number         , &
+	tmp_coldest_20yr_ave, &
+	tmp_hottest_20yr_ave, &
+	gdd_20yr_ave        , &
+	pool_litter_trunk   , &
+	pool_litter_leaf    , &
+	pool_litter_root    , &
+	pool_litter_ag      , &
+	pool_litter_bg      , &
+	pool_som_int        , &
+	pool_som_slow       , &
+	pool_fuel_standT    , &
+	pool_fuel_standG    , &
+	pool_w(:)           , &
+	pool_snow              
+	
+	read (Fn)                      &
+	gdd_20yr_RunningRecord    (:), &
+	tmp_coldest_RunningRecord (:), &
+	tmp_hottest_RunningRecord (:), &
+	tmp_ave_GrassGrowth_RR    (:)   
+	
+	read (Fn)                 &
+	pool_c_RR            (:), &
+	flux_c_uptake_RR     (:), &
+	flux_c_mnt_RR        (:), &
+	flux_c_gro_RR        (:), &
+	flux_c_htr_RR        (:), &
+	flux_c_fir_RR        (:), &
+	flux_c_lit_RR        (:), &
+	flux_c_som_RR        (:), &
+    flux_ro1_RunningRecord (:), &
+    flux_ro2_RunningRecord (:), &
+    flux_ic_RunningRecord  (:), &
+    flux_ev_RunningRecord  (:), &
+    flux_tr_RunningRecord  (:), &
+    flux_sl_RunningRecord  (:), &
+    flux_tw_RunningRecord  (:), &
+    flux_sn_RunningRecord  (:)   
+	
+	read (Fn) &
+	tmp_air_RunningRecord (:)
+!	tmp_0m_RunningRecord (:), &	! R-SEIB
+!	tmp_soil_RunningRecord(:)   
+	
+	do i=1, NumSoil
+		read (Fn) tmp_soil_RunningRecord(:,i)
+	enddo
+	
+	read (Fn)                  &
+	prec_RunningRecord    (:), &
+	ev_pot_RunningRecord  (:), &
+	par_RunningRecord     (:), &
+	pool_w1_RunningRecord (:)   
+!	soil_theta_RunningRecord (:)	! R-SEIB
+	
+!_____________ Main part3 (variables for NOAH-LSM)
+	read (Fn) &
+	CMC    , &
+	SNOWH  , &
+	SNEQV  , &
+	T1     , &
+	STC (:), &
+	SMC (:), &
+	SH2O(:)   
+	
 END SUBROUTINE spinup_in
 
 
@@ -752,27 +983,29 @@ END SUBROUTINE spinup_in
 !***********************************************************************************************
 SUBROUTINE tmp_soil_interpolate (tmp_soil1, tmp_soil2, tmp_soil3, tmp_soil)
    USE data_structure
-   implicit none
    
 !_____________ Set variables
 !Augments
-   real,intent(IN) ::tmp_soil1         !soil temperature @ top layer    (Celcius)
-   real,intent(IN) ::tmp_soil2         !soil temperature @ 20th layer   (Celcius)
-   real,intent(IN) ::tmp_soil3         !soil temperature @ bottom layer (Celcius)
-   real,intent(OUT)::tmp_soil(NumSoil) !soil temperatures from top of the soil surface (Celcius)
+   real,intent(IN)   ::tmp_soil1         !soil temperature @ top layer    (Celcius)
+   real,intent(IN)   ::tmp_soil2         !soil temperature @ 20th layer   (Celcius)
+   real,intent(IN)   ::tmp_soil3         !soil temperature @ bottom layer (Celcius)
+   real              ::tmp_soil(NumSoil) !soil temperatures from top of the soil surface (Celcius)
    
 !Local variables
    real    x
    integer i
    
 !_____________ Main part
-   do i=1, 20
-     x = real(i) / 20.0
+   do i=1, min(20, NumSoil)
+     x = real(i) / 20.
      tmp_soil(i) = (1.0-x)*tmp_soil1 + x*tmp_soil2  
    enddo
-    do i=21, NumSoil
-      x = (real(i)-20.0) / 10.0
-      tmp_soil(i) = (1.0-x)*tmp_soil2 + x*tmp_soil3  
-    enddo
+   
+   if (NumSoil>20) then
+      do i=21, min(30, NumSoil)
+         x = (real(i)-20.0) / 10.0
+         tmp_soil(i) = (1.0-x)*tmp_soil2 + x*tmp_soil3  
+      enddo
+   endif
    
 END SUBROUTINE tmp_soil_interpolate

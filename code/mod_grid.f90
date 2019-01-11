@@ -15,6 +15,8 @@
       integer, pointer :: Max_x, Max_y   ! Lenght of computational domain == Max_loc
       integer, pointer :: Area           ! Area of domain
       integer, pointer :: N_tot          ! Total number of cells
+      real,    pointer :: CellArea       ! Area for each establishment cell (m2)
+      real,    pointer :: CellLength     ! Side length for each establishment cell (m)
       real,    pointer :: h(:,:)         ! depth (m)
       logical, pointer :: mask(:,:)      ! Land mask: land -> .false., wet -> .true.
       real,    pointer :: sal_ave(:,:)   ! Mean salinity (psu)
@@ -66,6 +68,7 @@
       allocate( GRID%N_x,   GRID%N_y   )
       allocate( GRID%Max_x, GRID%Max_y )
       allocate( GRID%Area,  GRID%N_tot)
+      allocate( GRID%CellArea,  GRID%CellLength)
       
       GRID%N_x   = N_xi_rho *resol*2
       GRID%N_y   = N_eta_rho*resol*2
@@ -73,6 +76,8 @@
       GRID%Max_y = N_eta_rho*resol
       GRID%Area  = GRID%Max_x * GRID%Max_y
       GRID%N_tot = GRID%N_x * GRID%N_y
+      GRID%CellLength = 0.5
+      GRID%CellArea = GRID%CellLength * GRID%CellLength
       
       allocate( GRID%h      (GRID%N_x, GRID%N_y) )
       allocate( GRID%mask   (GRID%N_x, GRID%N_y) )
@@ -80,12 +85,6 @@
       allocate( GRID%sal_max(GRID%N_x, GRID%N_y) )
       allocate( GRID%sal_min(GRID%N_x, GRID%N_y) )
       
-      GRID%N_x   = N_xi_rho *resol*2
-      GRID%N_y   = N_eta_rho*resol*2
-      GRID%Max_x = N_xi_rho *resol
-      GRID%Max_y = N_eta_rho*resol
-      GRID%Area  = GRID%Max_x * GRID%Max_y
-      GRID%N_tot = GRID%N_x * GRID%N_y
       
       ! Get variable id
       call check( nf90_inq_varid(ncid, 'h', var_id     ) ) 
@@ -135,6 +134,7 @@
       write(*,*) "CLOSE: ", HIS_FILE
       
       
+      write(*,*) 'Convert ROMS grids to SEIB-DGVM grids'
       CALL ex_grid1(N_xi_rho, N_eta_rho, resol*2, roms_h,    GRID%h   )
       CALL ex_grid2(N_xi_rho, N_eta_rho, resol*2, roms_mask, GRID%mask)
       
@@ -142,13 +142,13 @@
       CALL ex_grid1(N_xi_rho, N_eta_rho, resol*2, roms_sal_max, GRID%sal_max )
       CALL ex_grid1(N_xi_rho, N_eta_rho, resol*2, roms_sal_min, GRID%sal_min )
       
-      Do i=1, GRID%N_y
-        write(99,*) GRID%mask(:,i)
-        write(97,*) GRID%h   (:,i)
-        write(96,*) GRID%sal_ave(:,i)
-        write(95,*) GRID%sal_max(:,i)
-        write(94,*) GRID%sal_min(:,i)
-      End do
+!      Do i=1, GRID%N_y
+!        write(99,*) GRID%mask(:,i)
+!        write(97,*) GRID%h   (:,i)
+!        write(96,*) GRID%sal_ave(:,i)
+!        write(95,*) GRID%sal_max(:,i)
+!        write(94,*) GRID%sal_min(:,i)
+!      End do
       
       END SUBROUTINE read_ROMS_files
       
@@ -165,6 +165,8 @@
       integer :: i,j
       integer :: i2,j2
       
+!$omp parallel
+!$omp do private(i,j,i2,j2)
       Do j=1, Ny*ratio
         Do i=1, Nx*ratio
           i2 = int((i-1)/ratio)+1
@@ -172,6 +174,8 @@
           grd2(i,j) = grd1(i2,j2)
         End do
       End do
+!$omp end do
+!$omp end parallel
       
       END SUBROUTINE ex_grid1
 !-------------------------------------------------------------------
@@ -184,18 +188,25 @@
       
       integer :: i,j
       integer :: i2,j2
+      integer :: count = 0
       
+!$omp parallel
+!$omp do private(i,j,i2,j2),reduction(+:count)
       Do j=1, Ny*ratio
         Do i=1, Nx*ratio
           i2 = int((i-1)/ratio)+1
           j2 = int((j-1)/ratio)+1
           if(grd1(i2,j2)==1.0)then
             grd2(i,j) = .true.
+            count = count+1
           else
             grd2(i,j) = .false.
           end if
         End do
       End do
+!$omp end do
+!$omp end parallel
+      write(*,*) 'Total number of plot:', count
       
       END SUBROUTINE ex_grid2
       

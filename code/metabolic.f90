@@ -1,4 +1,461 @@
 !**************************************************************************************************
+! THIS SUBROUTINE IS UNDER CONSTRUCTION
+! 
+! Calculation of photosynthesis parameters with the Farquhar's equation (for each PFT)
+!   
+!   Output variables from this sub-routine
+!   assim_rate(PFT_no, MaxLightClass), Carbon assimiration rate (gDM m-2 TimeStep-1)
+!   gtc_rate  (PFT_no, MaxLightClass), Vapor conductances on leaf surface (mol H2O m-2 s-1)
+!   
+! ●注意
+! (1) 暗呼吸速度も計算しているが、気孔コンダクタンスの計算に使用しているだけで、出力はしていない
+! (2) 暗呼吸速度は、SEIB本体の方法とパラメーターを使って計算しているが、
+! コメント部分のコードをActtivateすると、Korzukhin et al.(2004)の方法にて計算可能
+! (3) CO2分圧の単位は、光合成速度についてはpa、気孔コンダクタンスについてはppmvを使用
+! 
+! ●補遺
+! (1) C4草本の光合成式、気孔コンダクタンス式は構築中
+! (2) カラマツ以外のPFTについては、パラメーターには仮の値を与えている
+! (3) パラメーターは差しあたり、以下のこのサブルーチンの最初のパートで与えている
+! (4) ValueAt25C_Jmaxの値が低すぎる気がする。そのため、殆ど常に電子伝達系が律速段階となる
+! 　↑熊谷さんによると、Jmax≒2×Vcmaxとのこと。
+! (5) ここでは、気孔の水蒸気コンダクタンスを算出してから、それを元にCO2コンダクタンスを計算している
+!     しかし、Ball et al.(1987) & Luening(1995)のオリジナルモデルでは、その逆。
+!     ここの計算順序で数値も変わるらしいので、パラメーターに合わせて適宜変えること。
+!**************************************************************************************************
+SUBROUTINE photosynthesis_condition_farquhar (tmp_air, DT)
+
+!_____________ Set variables
+!Namespace
+   USE data_structure
+   USE vegi_status_current1
+   USE vegi_status_current2
+   USE grid_status_current1
+   USE grid_status_current2
+   implicit none
+   
+!____________________ Set Parameters
+!Values at 25 degree Celcius
+   
+!Dark Respiration Rate at daytime (micro mol m-2 s-1)
+!real,parameter,dimension(PFT_no):: ValueAt25C_Rd = &
+!(/ 1.00, 1.00, 1.00, 1.00, 1.00, 1.00,  &
+!1.00, 1.00, 1.00,                    &
+!1.00, 0.23, 1.00, 1.00, 1.00,        &
+!1.00, 1.00                          /)
+   
+   !Maximum of carboxylation rate (micro mol m-2 s-1)
+   real,parameter,dimension(PFT_no):: &
+   ValueAt25C_Vcmax = &
+!   (/ 45.1, 45.1, 45.1, 45.1, 45.1, 45.1, &   !!!>>>>>>>>>>>>TN: rm
+!      45.1, 45.1, 45.1,                   &   !!!>>>>>>>>>>>>TN: rm
+!      45.1, 10.6, 45.1, 45.1, 45.1,       &   !!!>>>>>>>>>>>>TN: rm
+!      45.1, 45.1                         /)   !!!>>>>>>>>>>>>TN: rm
+   (/ 45.1, 45.1, 45.1, 45.1            /)   !!!<<<<<<<<<<<<<<TN: add
+   
+   !Maximum of electron transport rate (micro mol m-2 s-1)
+   real,parameter,dimension(PFT_no):: &
+   ValueAt25C_Jmax  = &
+!   (/ 44.5, 44.5, 44.5, 44.5, 44.5, 44.5, &   !!!>>>>>>>>>>>>TN: rm
+!      44.5, 44.5, 44.5,                   &   !!!>>>>>>>>>>>>TN: rm
+!      44.5, 10.9, 44.5, 44.5, 44.5,       &   !!!>>>>>>>>>>>>TN: rm
+!      44.5, 44.5                         /)   !!!>>>>>>>>>>>>TN: rm
+   (/ 44.5, 44.5, 44.5, 44.5            /)   !!!<<<<<<<<<<<<<<TN: add
+   
+   !etc
+   real,parameter:: &
+    ValueAt25C_Tau   = 2600.  ,& !Rubisco specificity factor (Pa)
+    ValueAt25C_KC    = 30.    ,& !Michaelis constant for CO2 (Pa)
+    ValueAt25C_KO    = 30000.    !Michaelis constant for O2  (Pa)
+   
+!Sensitivity to the temperature (J mol-1)
+   real,parameter:: &
+!   Sensitivity_Rd    = 64000., &
+    Sensitivity_Tau   = 29000., &
+    Sensitivity_KC    = 65000., &
+    Sensitivity_KO    = 36000., &
+    Sensitivity_Vcmax = 75750., &
+    Sensitivity_Jmax  = 44700.   
+   
+!Apparent quantum yield (electron/PAR-quanta)
+   real,parameter,dimension(PFT_no)::&
+   ph = &
+!   (/0.1196, 0.1196, 0.1196, 0.1196, 0.1196, 0.1196, &   !!!>>>>>>>>>>>>TN: rm
+!     0.1196, 0.1196, 0.1196,                         &   !!!>>>>>>>>>>>>TN: rm
+!     0.1196, 0.0344, 0.1196, 0.1196, 0.1196,         &   !!!>>>>>>>>>>>>TN: rm
+!     0.1196, 0.1196                                /)    !!!>>>>>>>>>>>>TN: rm
+   (/0.1196, 0.1196, 0.1196, 0.1196                /)   !!!<<<<<<<<<<<<<<TN: add
+   
+!Deactivation efficiencies (J mol-1)
+   real,parameter,dimension(PFT_no)::&
+   Deactivation_Vcmax = &
+!   (/193200., 193200., 193200., 193200., 193200., 193200., &   !!!>>>>>>>>>>>>TN: rm
+!     193200., 193200., 193200.,                            &   !!!>>>>>>>>>>>>TN: rm
+!     193200., 190000., 193200., 193200., 193200.,          &   !!!>>>>>>>>>>>>TN: rm
+!     193200., 193200.                                     /)   !!!>>>>>>>>>>>>TN: rm
+   (/193200., 193200., 193200., 193200.                  /)   !!!<<<<<<<<<<<<<<TN: add
+   
+   real,parameter,dimension(PFT_no)::&
+   Deactivation_Jmax  = &
+!   (/193200., 193200., 193200., 193200., 193200., 193200., &   !!!>>>>>>>>>>>>TN: rm
+!     193200., 193200., 193200.,                            &   !!!>>>>>>>>>>>>TN: rm
+!     193200., 190000., 193200., 193200., 193200.,          &   !!!>>>>>>>>>>>>TN: rm
+!     193200., 193200.                                     /)   !!!>>>>>>>>>>>>TN: rm
+   (/193200., 193200., 193200., 193200.                  /)   !!!<<<<<<<<<<<<<<TN: add
+   
+!Entropies of deactivation (J mol-1 K-1)
+   real,parameter:: &
+    Entropies_Vcmax = 656. ,&
+    Entropies_Jmax  = 643.   
+   
+!____________________ Define Auguments
+   real,intent(IN)::tmp_air !Air temperature ()
+   real,intent(IN)::DT      !=1800.0, Time step for integration in sec
+   
+!____________________ Define local variables
+   !Fortcing data
+   real    p_air   !air pressure (Pa)
+   real    p_O2    !O2 partial pressure (Pa)
+   real    p_CO2   !atmospheric CO2 partial pressure (Pa)
+   real    p_CO2_i !interceluer CO2 partial pressure (Pa)
+   
+   !Temperature dependent variables
+   real    Rd      !Dark Respiration Rate at daytime (micro mol m-2 s-1)
+   real    PCC     !CO2 partial pressure at compensation point (Pa)
+   real    KC      !Michaelis constant for CO2 (Pa)
+   real    KO      !Michaelis constant for O2  (Pa)
+   real    Vcmax   !Maximum of carboxylation rate (micro mol m-2 s-1)
+   real    Jmax    !Maximum of electron transport rate (micro mol m-2 s-1)
+   
+   !Production rate (micro mol m-2 s-1)
+   real    Ac !Gross production under Rubisco content limit
+   real    Ae !Gross production under Electricity transportation limit
+   real    An !Net production
+   
+   !stomata conductance (H2O mm m-2 s-1)
+   real gsw !
+   
+   !non-stomatal effect on photosynthesis
+   real,dimension(PFT_no)::ce_water
+   
+   !PAR intensity in the mentioned loop
+   real     par_current 
+   
+   !Dark respiration related
+   real qt             !QT for leaf respiration
+   real Sensitivity_Rd !temperature Sensitivity multiplier for leaf respiration
+   
+   !For general usage
+   real     x, y, a, b  !for general usage
+   integer  loop, p, light_class, i  !for general usage
+   
+   !Unit converters
+   real Unit_converter1, Unit_converter2
+   
+!_____________ Preparation
+   
+   !Constant for unit conversion from (micro mol CO2 m-2 s-1) to (g DM m-2 time_step-1)
+   ! micro mol  -> mol       :* 10^-6
+   ! mol        -> g(Carbon) :* 12
+   ! secound^-1 -> hour^-1   :* 3600
+   Unit_converter1 = DT * 12.0 / 1000000.0 / C_in_drymass
+   
+   !Constant for unit conversion from (mm H2O m-2 s-1) to (mol H2O m-2 s-1)
+   Unit_converter2 = 1000./18.
+   
+   !Air pressure (Pa)
+   p_air = ap * 100.
+   
+   !O2 partial pressure (Pa)
+   p_O2  = p_air * 0.21
+   
+   !Atmospheric CO2 partial pressure (Pa)
+   p_CO2 = p_air * 0.000001 * co2atm
+   
+   !ce_water: effect of stomata openness due to soil water shortage
+   Do p=1, PFT_no
+      x = min( 1.0 , max(0.001, stat_water(p)) )
+     !ce_water(p) = x ** 0.5           !Method for SEIB V1.00-V2.61
+      ce_water(p) = 2.0 * x - x ** 2.0 !Method for SEIB V2.62-
+   End do
+   
+!_____________ Compute photosynthesis parameters for each PFT and each relative light intensity
+   
+!Initialize variables
+   assim_rate (:,:) = 0.0
+   gtc_rate   (:,:) = 0.0
+   
+!Loop for each PFT
+DO p = 1, PFT_no
+   if ( .not. pft_exist(p) ) cycle
+   if ( .not. phenology(p) ) cycle
+   
+   !Initialize interceller CO2 pressure (p_CO2_i in Pa)
+   p_CO2_i  = p_CO2 * 0.7
+   
+   !Dark respiration rate
+   qt             = 2.0 * exp( -0.009 * (tmp_air-15.0)  )
+   Sensitivity_Rd = exp( (tmp_air  - 15.0) * log(qt) / 10.0 )
+   Rd             = RM(p) * PN_f(p) * SLA(p) * Sensitivity_Rd !@(gDM m-2 day-1)
+   Rd             = Rd * C_in_drymass * 0.9645                !@(micro mol C m-2 s-1)
+                   !0.9645 = 1000000 / (60*60*24) / 12
+   
+   !Loop for PAR intensity class
+   Do light_class = 1, MaxLightClass
+      !PAR intensity for this loop
+      par_current = par * ( real(light_class) / real(MaxLightClass) )
+      
+      !Loop for parameter convergence
+      do loop = 0, 3
+         !------------------------------------------------------------!
+         ! Calculate temperature dependent variables
+         !------------------------------------------------------------!
+         x = ( 1/298.16 - 1/(tmp_air+ABS_ZERO) ) / GasConst
+         
+!        Rd    = ValueAt25C_Rd(p)* exp(Sensitivity_Rd * x)
+         
+         KC    = ValueAt25C_KC   * exp(Sensitivity_KC * x)
+         
+         KO    = ValueAt25C_KO   * exp(Sensitivity_KO * x)
+         
+         PCC = 0.5 * p_O2 / ( ValueAt25C_Tau*exp(Sensitivity_Tau*x) )
+         
+         a = 1. + exp( (1/GasConst) * (Entropies_Vcmax - Deactivation_Vcmax(p)/298.16 )           )
+         b = 1. + exp( (1/GasConst) * (Entropies_Vcmax - Deactivation_Vcmax(p)/(tmp_air+ABS_ZERO)))
+         Vcmax = ValueAt25C_Vcmax(p) * exp(Sensitivity_Vcmax * x) * a / b
+         
+         a = 1. + exp( (1/GasConst) * (Entropies_Jmax - Deactivation_Jmax(p)/298.16       )  )
+         b = 1. + exp( (1/GasConst) * (Entropies_Jmax - Deactivation_Jmax(p)/(tmp_air+ABS_ZERO)))
+         Jmax  = ValueAt25C_Jmax(p)  * exp(Sensitivity_Jmax  * x) * a / b
+         
+         !------------------------------------------------------------!
+         ! Ac, Ae, An: Production rate (micro mol CO2 m-2 s-1)
+         !------------------------------------------------------------!
+         Ac = Vcmax * (p_CO2_i - PCC) / (p_CO2_i + KC*(1.0+p_O2/KO))
+         Ae = min(Jmax, ph(p)*par_current) * (p_CO2_i-PCC) / (4*p_CO2_i+8*PCC)
+         An = min(Ac,Ae) * ce_water(p) !Adding effect of soil water shortage 
+         An = An - Rd                  !Subtracting respiration
+         
+         !------------------------------------------------------------!
+         ! co2cmp: CO2 compensation point (ppmv)
+         !------------------------------------------------------------!
+         if (Life_type(p)==4) then
+            co2cmp(p) = CO2cmp0(p)
+         else
+            x = 1.00 + 0.0451*(tmp_air-20.0) + 0.000347*((tmp_air-20.0)**2)
+            co2cmp(p) = CO2cmp0(p) * max(0.0, x) 
+         endif
+         
+         !------------------------------------------------------------!
+         !gsw: stomatal conductance (mol H2O m-2 s-1), Leuning (1995)
+         !------------------------------------------------------------!
+         gsw = GS_b1(p) + ( GS_b2(p)*An ) / ( (co2atm-co2cmp(p))*(1.0+vpd/GS_b3(p)) )
+         gsw = max(gsw, GS_b1(p))
+         
+         !------------------------------------------------------------!
+         !p_CO2_i: New intercellular CO2 concentration (pa)
+         !------------------------------------------------------------!
+         x = gsw / 1.56    !1.56: conversion from H2O to CO2 conductance
+         p_CO2_i = co2atm - An / x   !Leuning (1995) [Plant Cell & Environment 18]
+         p_CO2_i = max(0.0, p_CO2_i) 
+         p_CO2_i = p_CO2_i * p_air * 0.000001  !Unit conversion (ppmv -> pa)
+         
+      end do
+      
+      !Carbon assimiration rate for each PFT and each relative PAR (gDM m-2 TimeStep-1)
+      if (Life_type(p)==4) then
+         assim_rate (p,light_class) = Ae
+      else
+         assim_rate (p,light_class) = min(Ae, Ac)
+      endif
+      assim_rate (p,light_class) = assim_rate (p,light_class) * Unit_converter1
+      
+      !Vapor conductances on leaf surface for each PFT and each lelative PAR (mm m-2 s-1)
+      gtc_rate (p,light_class) = gsw * Unit_converter2
+      
+   End Do !end of loop "light_class"
+END DO !end of loop of "p"
+   
+END SUBROUTINE photosynthesis_condition_farquhar
+
+
+
+!**************************************************************************************************
+! Daily GPP and Canopy_conductance
+!**************************************************************************************************
+SUBROUTINE photosynthesis_timestep (TimeStep, TimeStepMax, RadShort_30min)
+
+!_____________ Set variables
+!Namespace
+   USE data_structure
+   USE time_counter
+   USE vegi_status_current1
+   USE vegi_status_current2
+   USE grid_status_current1
+   USE grid_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
+   implicit none
+   
+!Define Local Parameters
+   !Number of vertical layers of grass 
+   !for numericaly calculating photosyhthesis rate and stomata conductance
+   integer,parameter:: DivedGrassLayer = 30
+   
+!Define Augments
+   integer TimeStep     !Time step counter
+   integer TimeStepMax  !Time step counter
+   real,dimension(1:TimeStepMax):: RadShort_30min !下向き短波放射 (W/m^2)
+   
+!Define local variables
+   
+   !Relative intensity of over-canopy PAR at this time, 0.0~1.0
+   real par_rel 
+   
+   !GPP of each tree
+   real gpp_step !For each crown vertical layer
+   real gpp_30min !For each indivisual tree and grass cell
+   
+   !Leaf Area (m2/tree/Step)
+   real la_mentioned
+   
+   !Canopy conductance @ this time step (mol H2O m-2 s-1)
+   real canopy_cond_30min
+   
+   !For grass photosynthesis
+real    lai_mentioned         !Grass LAI at the mentioned grass layer (m2 m-2)
+real    gpp_grass             !(gDM cell-1 TimeStep-1)
+real    par_rel_mentioned     !Relative PAR intensity if the mentioned grass layer (0.0~1.0)
+integer light_class_mentioned !Light intensity class (1~)
+   
+   !For general usage & loop counters
+   real    x
+   integer i, j, k, no, p
+   integer light_class
+   
+!_____________ 
+   !Initialization
+   canopy_cond_30min = 0.0
+   
+   !par_rel: Fraction of PAR @ this timestep to PAR @ midday
+   x = 1.
+   do i=1, TimeStepMax
+      x = max(x, RadShort_30min(i))
+   enddo
+   par_rel = RadShort_30min(TimeStep) / x
+   
+!_____________ Woody PFTs
+DO no=1, Max_no
+   if (par_rel<0.01) exit
+   
+   !initialize GPP of a tree
+   gpp_30min = 0.000
+   p = pft(no)
+   
+   if ( .not. tree_exist(no) ) cycle
+   if ( .not. phenology(p)   ) cycle
+   if ( la(no)  <=0.0        ) cycle
+!  if ( psat(no) <= 0.0      ) cycle
+   
+   la_mentioned = la(no) / (height(no)-bole(no)) !leaf area per crown layer of this tree (m2/step)
+   do i = height(no), bole(no)+1, -1
+      
+      !light_class: current PAR intensity income class of this crown disk
+      x           = par_diffuse * par_diffuse_rel   (i) + & 
+                    par_direct  * par_direct_rel (no,i)   !midday PAR income
+      x           = x * par_rel
+      light_class = int(MaxLightClass * x/par) 
+      
+      if ( light_class <= 0 ) cycle
+      
+      !Photosynthesis
+      gpp_step = assim_rate(p,light_class) * la_mentioned
+      
+      !Production recorder for each foliage disk
+      gpp_30min = gpp_30min + gpp_step
+      
+      if (i-bole(no)<=10) npp_crownbottom(no, i-bole(no)) = & 
+                          npp_crownbottom(no, i-bole(no)) + gpp_step
+      if (i==height(no) ) npp_crowntop(no)                = & 
+                          npp_crowntop(no)                + gpp_step
+      if (i==bole(no)+1 ) npp_crownbottom_daily(no)       = & 
+                          npp_crownbottom_daily(no)       + gpp_step
+      
+      !Canopy conductance
+      canopy_cond_30min = canopy_cond_30min + &
+                          gtc_rate(p,light_class) * la_mentioned
+      
+   end do
+   
+   !Increase mass_available & c_uptake
+   mass_available (no) = mass_available(no)  + gpp_30min
+   gpp(p)              = gpp(p)              + gpp_30min
+   npp(p)              = npp(p)              + gpp_30min
+   gpp_daily_ind(no)   = gpp_daily_ind(no)   + gpp_30min
+   
+   mort_regu1(no)      = mort_regu1(no)      + gpp_30min
+   flux_c_uptake_RR(1) = flux_c_uptake_RR(1) + gpp_30min
+   
+END DO
+
+!_____________ Herbaceous PFTs
+   !set PFT number, p
+   if (pft_exist(C3g_no)) then
+      p=C3g_no
+   else
+      p=C4g_no
+   endif
+   
+   !obtain GPP per unit area
+!DO i=1, DivedG !!!>>>>>>>>>>>>>>>TN: rm
+!DO j=1, DivedG !!!>>>>>>>>>>>>>>>TN: rm
+DO i=1, GRID%N_x !!!<<<<<<<<<<<<<<<TN: add
+DO j=1, GRID%N_y !!!<<<<<<<<<<<<<<<TN: add
+   if (par_rel<0.01) exit
+   
+   gpp_30min    = 0.0
+!   la_mentioned = (lai_grass(i,j) / real(DivedGrassLayer) ) * ((Max_loc/DivedG)**2)  !!!>>>>>>>>>>>>>>>TN: rm
+   la_mentioned = (lai_grass(i,j) / real(DivedGrassLayer) ) * (real(GRID%Area)/real(GRID%N_tot))  !!!<<<<<<<<<<<<<<<TN: add
+   
+   do k=1, DivedGrassLayer !For each vertical layer of a grass cell
+      lai_mentioned         = lai_grass(i,j) * (real(k)/real(DivedGrassLayer))
+      par_rel_mentioned     = par_grass_rel(i,j) * par_rel * exp( -1.0*eK(p)*lai_mentioned )
+      light_class_mentioned = int( MaxLightClass * par_rel_mentioned ) !PAR intensity class
+      
+      if (light_class_mentioned<=0) exit
+      !GPP for each layer for each grass cell (gDM cell-1 TimeStep-1)
+      gpp_30min         = gpp_30min         + assim_rate (p, light_class_mentioned) * la_mentioned
+      
+      !Canopy conductance for each layer for each grass cell (mol H2O cell-1 TimeStep-1)
+      canopy_cond_30min = canopy_cond_30min +   gtc_rate (p, light_class_mentioned) * la_mentioned
+   end do
+   
+   !increase gmass_available (g dm / cell / day)
+   gmass_available(i,j) = gmass_available(i,j) + gpp_30min
+   
+   !carbon balance
+   gpp(p)              = gpp(p)              + gpp_30min
+   npp(p)              = npp(p)              + gpp_30min
+   flux_c_uptake_RR(1) = flux_c_uptake_RR(1) + gpp_30min
+   
+END DO
+END DO
+   
+!Sumup daily 30min canopy conductance to daily canopy conductance
+   if (TimeStep==1) then
+      canopy_cond = 0.0
+   endif
+   
+   canopy_cond = canopy_cond + &
+!                 canopy_cond_30min / Max_loc / Max_loc / TimeStepMax  !!!>>>>>>>>>>>>TN:rm
+                 canopy_cond_30min / real(GRID%Area) / TimeStepMax !!!<<<<<<<<<<<<TN:add
+   
+END SUBROUTINE photosynthesis_timestep
+
+
+
+!**************************************************************************************************
 ! Calculation of photosynthesis parameters (for each PFT)
 !**************************************************************************************************
 SUBROUTINE photosynthesis_condition (tmp_air)
@@ -249,8 +706,8 @@ SUBROUTINE photosynthesis ()
    
 !_____________ Woody PFTs
 count = 0
-!$omp parallel private(no)
-!$omp do private(i,gpp_ind,p,const0,const4,const5,a1,a2,a4),reduction(+:canopy_cond)
+!$omp parallel
+!$omp do private(no,i,gpp_ind,p,const0,const4,const5,a1,a2,a4),reduction(+:canopy_cond,gpp,npp)
 DO no=1, Max_no
    
    !initialize gpp of a tree
@@ -306,24 +763,26 @@ END DO
    endif
    
    !obtain GPP per unit area
-!$omp parallel private(i,j)
-!$omp do private(k,const0,const1,const2,a2,a3,const3,x),reduction(+:canopy_cond)
+!$omp parallel
+!$omp do private(i,j,k,const0,const1,const2,a2,a3,const3,x)
+!$omp reduction(+:canopy_cond,gpp,npp,flux_c_uptake_RR)
 !DO i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !DO j=1, DivedG !!!>>>>>>>>>>>>TN:rm
 DO i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
 DO j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
    
    k = int( MaxParClass * par_grass_rel(i,j) ) !PAR intensity class
-   if ( k <= 0 )               cycle
-   if ( psat_grass(k) <= 0.0 ) cycle
+   if ( k <= 0 )                cycle
+   if ( psat_grass(k)  <= 0.0 ) cycle
+   if ( lai_grass(i,j) <= 0.0 ) cycle
    
    const0 = GS_b2(p) * psat_grass(k) / max(0.01, co2atm-co2cmp_grass(k)) / (1.0 + vpd/GS_b3(p))
    const1 = Unit_converter * 2.0 * dlen(doy) * psat_grass(k) / eK(p)
    const2 = eK(p) * lue_grass(k) / psat_grass(k)
    
    !obtain daily gpp per unit area
-   a2  = 1.0 + sqrt( 1.0 + (par * par_grass_rel(i,j)) * const2 )
-   a3  = 1.0 + sqrt( 1.0 + (par * par_grass_rel(i,j)) * const2 * exp(-1.0*eK(p)*lai_grass(i,j)) )
+   a2     = 1.0 + sqrt( 1.0 + (par * par_grass_rel(i,j)) * const2 )
+   a3     = 1.0 + sqrt( 1.0 + (par * par_grass_rel(i,j)) * const2 * exp(-1.0*eK(p)*lai_grass(i,j)) )
    const3 = log(a2/a3)
    x      = const1 * const3          !gpp (g dm / m2   / day)
 !   x      = x * ((Max_loc/DivedG)**2) !gpp (g dm / cell / day) !!!>>>>>>>>>>>>TN:rm
@@ -358,7 +817,7 @@ END SUBROUTINE photosynthesis
 !**************************************************************************************************
 ! Optimum Leaf Area Index: daily computation using running mean of PAR
 !**************************************************************************************************
-SUBROUTINE lai_optimum (tmp_air, tmp_soil)
+SUBROUTINE lai_optimum (tmp_air, tmp_soil, TimeStepMax, RadShort_30min)
 
 !_____________ Set variables
 !Namespace
@@ -376,6 +835,9 @@ SUBROUTINE lai_optimum (tmp_air, tmp_soil)
    real   ,intent(IN)::tmp_air   !2m air temperature (Celcius)
    real   ,intent(IN)::tmp_soil  !average soil temperature for 50cm  depth (Celcius)
    
+   integer                        TimeStepMax    !Time step counter
+   real,dimension(1:TimeStepMax)::RadShort_30min !Downward short wave radiation (W/m^2)
+   
 !Local variables
 !   real,dimension(DivedG,DivedG):: lai_opt_grass   !optimum LAI for grass (m2/m2) !!!>>>>>>>>>>>>TN:rm
    real,dimension(GRID%N_x,GRID%N_y):: lai_opt_grass   !optimum LAI for grass (m2/m2) !!!<<<<<<<<<<<<TN:add
@@ -385,8 +847,10 @@ SUBROUTINE lai_optimum (tmp_air, tmp_soil)
    real    tmp_sensibility_soil  !temperature sensibility multiplier for root
    real    root_per_foliage      !realized root per foliage fraction
    real    const1, const2        !temporal usage
-   real    a0, a1, a2, a3        !for general usage
+   real    a0, a1, a2, a3, x     !for general usage
    integer i, j, k, p            !loop counter
+   integer light_class, timestep
+   real    radShort_DayMax, lai_current
    real,dimension(10)::lai_opt
    
 !Reset
@@ -436,7 +900,8 @@ SUBROUTINE lai_optimum (tmp_air, tmp_soil)
    
 !optimum leaf index
 lai_opt(:) = 0.0
-   DO k=1, 10 !For each PAR intensity class
+!IF ( .not. Flag_photosynthesis_type) then
+   DO k=1, MaxParClass !For each PAR intensity class
       if ( psat_grass(k) <= 0.001 ) cycle
       if ( lue_grass (k) <= 0.001 ) cycle
       if ( par           <= 1.00  ) cycle
@@ -453,6 +918,37 @@ lai_opt(:) = 0.0
       endif
       
    END DO
+!ELSE
+!   
+!!●以下、まだバグが取れないのでDisable
+!   !radShort_DayMax: Day maximum of short wave radiation
+!   radShort_DayMax = 1.0
+!   do timestep = 1, TimeStepMax
+!      radShort_DayMax = max(radShort_DayMax, RadShort_30min(timestep))
+!   enddo
+!   
+!   !For each PAR intensity class
+!   DO k=1, 10 
+!     !For each PAR intensity class
+!     do i = 0, 100
+!        lai_current = i / 10.0
+!        
+!        !const2: Sumup of daily GPP at the given PAR class (gDM / m2 / day)
+!        const2 = 0.0
+!        do timestep=1, TimeStepMax
+!           x = (k/10) * exp(-1.0*eK(p)*lai_current) * (RadShort_30min(timestep)/radShort_DayMax)
+!           light_class = int(x) * MaxLightClass
+!           const2 = const2 + assim_rate (p,light_class)
+!        enddo
+!        
+!        !Compare cost and benefit for the 1m^2 leaf at the given PAR intensity
+!        if (const2 < const1) exit
+!     end do
+!     lai_opt(k) = lai_current
+!     
+!   END DO
+!   
+!ENDIF
    
 !$omp parallel private(i,j)
 !$omp do
@@ -653,13 +1149,14 @@ END DO
 !__________________ Procedure (Foliage -> Dormance) __________________
 DO p = 1, PFT_no
 IF ( .not. flag(p) ) cycle
-   !if (Logging==1) write (*,*)  'Foliage phase ---> Domance phase', p, doy
+   if (Logging==1) write (*,*)  'Foliage phase ---> Domance phase', p, doy
    phenology(p)     = .false.
    dfl_leaf_shed(p) = 0
 END DO
 
 !__________________ Gradual defoliation __________________
 DO p = 1, PFT_no
+IF (.not. pft_exist(p)  ) cycle
 day_until_bare = Days_leaf_shed - dfl_leaf_shed(p)
 IF (day_until_bare < 1) cycle
    
@@ -687,7 +1184,7 @@ IF (day_until_bare < 1) cycle
    else
       
 !$omp parallel private(i,j)
-!$omp do private(x),reduction(+:flux_litter_ag),reduction(+:mass_combust)
+!$omp do private(x),reduction(+:flux_litter_ag),reduction(-:mass_combust)
 !      do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !      do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
       do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
@@ -724,7 +1221,7 @@ END DO
 !__________________ Checker (Dormance -> Foliage) __________________
 flag(:) = .false.
 DO p = 1, PFT_no
-!IF (.not. pft_exist(p)   ) cycle
+IF (.not. pft_exist(p)   ) cycle
 IF (phenology(p)         ) cycle
 IF (Phenology_type(p)==0 ) cycle
    
@@ -738,8 +1235,9 @@ IF (Phenology_type(p)==0 ) cycle
        !end do
        !if ( x >= 65.0 )                                        flag(p) = .true. 
        
-       ![by Yamazaki et al. 2007, Hydrological Processes: 21(15)]
-       if ( pheno_gdd0>100.0 .and. tmp_soil(1)>5.0 ) flag(p) = .true. 
+![by Yamazaki et al. 2007, Hydrological Processes: 21(15)]
+if ( pheno_gdd0>100.0 .and. tmp_soil(1)>5.0 ) flag(p) = .true. 
+
        
 !      if ( LAT>=0.0 .and. (doy<100 .or. doy>190) )            flag(p) = .false.
 !      if ( LAT< 0.0 .and. (doy<212-LAT .or. doy>312-LAT) )    flag(p) = .false.
@@ -771,14 +1269,14 @@ END DO
 !__________________ Procedure (Dormance -> Foliage) __________________
 DO p = 1, PFT_no
 IF (.not. flag(p)) cycle
-   !if (Logging==1) write (*,*) 'Domance phase ---> Foliage phase', p, doy
+   if (Logging==1) write (*,*) 'Domance phase ---> Foliage phase', p, doy
    phenology(p) = .true.
    dfl_leaf_onset(p) = 0
 END DO
 
 !__________________ Gradual release of stock energy __________________
 DO p = 1, PFT_no
-!IF (.not. pft_exist(p)  ) cycle
+IF (.not. pft_exist(p)  ) cycle
 IF (.not. phenology(p)  ) cycle
 IF (Phenology_type(p)==0) cycle
    
@@ -810,7 +1308,7 @@ IF (dfl_leaf_onset(p) >= day_length_release) cycle
    !For Grass species
    Else
 !$omp parallel private(i,j)
-!$omp do private(x),reduction(+:resp_grass_bg),reduction(+:mass_combust)
+!$omp do private(x),reduction(+:resp_grass_bg,mass_combust),reduction(-:npp)
 !      do i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !      do j=1, DivedG !!!>>>>>>>>>>>>TN:rm
       do i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
@@ -856,7 +1354,7 @@ SUBROUTINE maintenance_resp (tmp_air, tmp_soil)
 !!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
-!Set Local Parameter
+!Set parameter
    !daily proportion biomass remove when resource for maintenance respiration resource absent
    real,parameter::Frac_organ_remove=0.01
    
@@ -1047,20 +1545,21 @@ do j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
    endif
    
    !Source 3: when resource absent
-   if (mass_required > 0.001) then
-      a1 = Frac_organ_remove * gmass_leaf(i,j)
-      a2 = Frac_organ_remove * gmass_root(i,j)
+   If (mass_required > 0.001) then
+      if (gmass_leaf(i,j) >=0.0) then
+         a1 = Frac_organ_remove * gmass_leaf(i,j)
+         gmass_leaf(i,j)  = gmass_leaf(i,j)  - a1
+         flux_litter_ag   = flux_litter_ag   + a1
+!         lai_grass(i,j)   = gmass_leaf(i,j) * SLA(p) / ((Max_loc/DivedG)**2) !!!>>>>>>>>>>>>TN:rm
+         lai_grass(i,j)   = gmass_leaf(i,j) * SLA(p) / (real(GRID%Area)/real(GRID%N_tot)) !!!<<<<<<<<<<<<TN:add
+      endif
       
-      gmass_leaf(i,j)  = gmass_leaf(i,j)  - a1
-      gmass_root(i,j)  = gmass_root(i,j)  - a2
-      
-      flux_litter_ag   = flux_litter_ag   + a1
-      flux_litter_bg   = flux_litter_bg   + a2
-      
-!      lai_grass(i,j)   = gmass_leaf(i,j) * SLA(p) / ((Max_loc/DivedG)**2) !!!>>>>>>>>>>>>TN:rm
-      lai_grass(i,j)   = gmass_leaf(i,j) * SLA(p) / (real(GRID%Area)/real(GRID%N_tot)) !!!<<<<<<<<<<<<TN:add
-   endif
-   
+      if (gmass_root(i,j) >=0.0) then
+         a2 = Frac_organ_remove * gmass_root(i,j)
+         gmass_root(i,j)  = gmass_root(i,j)  - a2
+         flux_litter_bg   = flux_litter_bg   + a2
+      endif
+   End if
 end do
 end do
 !$omp end do
@@ -1181,21 +1680,24 @@ DO i=1, GRID%N_x !!!<<<<<<<<<<<<TN:add
 DO j=1, GRID%N_y !!!<<<<<<<<<<<<TN:add
    
    !above ground turnover
-   t_mass = gmass_leaf(i,j) * t_rate_ag  !leaf mass to drop (g/cell)
-   
-   gmass_leaf     (i,j) = gmass_leaf     (i,j) - t_mass
-   gmass_available(i,j) = gmass_available(i,j) + t_mass * RG_f_suck(p)
-!   lai_grass      (i,j) = gmass_leaf     (i,j) * SLA(p) / ((Max_loc/DivedG)**2) !!!>>>>>>>>>>>>TN:rm
-   lai_grass      (i,j) = gmass_leaf     (i,j) * SLA(p) / (real(GRID%Area)/real(GRID%N_tot)) !!!<<<<<<<<<<<<TN:add
-   
-   flux_litter_ag   = flux_litter_ag   + t_mass * (1.0-RG_f_suck(p))
+   if ( gmass_leaf(i,j) >= 0.0 ) then
+      t_mass = gmass_leaf(i,j) * t_rate_ag  !leaf mass to drop (g/cell)
+      
+      gmass_leaf     (i,j) = gmass_leaf     (i,j) - t_mass
+      gmass_available(i,j) = gmass_available(i,j) + t_mass * RG_f_suck(p)
+!      lai_grass      (i,j) = gmass_leaf     (i,j) * SLA(p) / ((Max_loc/DivedG)**2)   !!!>>>>>>>>>>>>>>>>>TN:rm
+      lai_grass      (i,j) = gmass_leaf     (i,j) * SLA(p) / (real(GRID%Area)/real(GRID%N_tot)) !!!<<<<<<<<<<<<TN:add
+      
+      flux_litter_ag   = flux_litter_ag   + t_mass * (1.0-RG_f_suck(p))
+   endif
    
    !below ground turnover
-   t_mass          = gmass_root(i,j) * t_rate_bg  !root mass to drop (g/m2)
-   
-   gmass_root(i,j) = gmass_root(i,j) - t_mass
-   flux_litter_bg  = flux_litter_bg  + t_mass
-   
+   if ( gmass_root(i,j) >= 0.0 ) then
+      t_mass          = gmass_root(i,j) * t_rate_bg  !root mass to drop (g/m2)
+      
+      gmass_root(i,j) = gmass_root(i,j) - t_mass
+      flux_litter_bg  = flux_litter_bg  + t_mass
+   endif
 END DO
 END DO
 !$omp end do
@@ -1233,60 +1735,52 @@ SUBROUTINE growth_wood ()
    real,parameter::LAgrow_max_day = 0.1
    
 !_____________ Define local variables
-!   real   ,dimension((int(0.99999+Max_loc/20.0))**2, 5)::cohort_lai     !!!>>>>>>>>>>>>TN:rm
-!   logical,dimension((int(0.99999+Max_loc/20.0))**2, 5)::cohort_crowded !!!>>>>>>>>>>>>TN:rm
-   real   ,dimension(int(0.99999+GRID%Max_x/20.0)*int(0.99999+GRID%Max_y/20.0), 5)::cohort_lai      !!!<<<<<<<<<<<<TN:add これで良いかわからない。要確認
-   logical,dimension(int(0.99999+GRID%Max_x/20.0)*int(0.99999+GRID%Max_y/20.0), 5)::cohort_crowded  !!!<<<<<<<<<<<<TN:add これで良いかわからない。要確認
-   integer,dimension(Max_no)::id_location
-   integer,dimension(Max_no)::id_layer
+!   real   ,dimension((int(0.99999+Max_loc/20.0))**2, 5)::cohort_lai    
+!   logical,dimension((int(0.99999+Max_loc/20.0))**2, 5)::cohort_crowded
+!   integer,dimension(Max_no)::id_location
+!   integer,dimension(Max_no)::id_layer
    
    integer p                      !for PFT number
-   integer i, j, no               !for loop counter
-   real    x, a1, a2, a3, a4, a6  !for temporal usage
+   integer no                     !for loop counter
+   real    a1, a2, a3, a4, a6     !for temporal usage
    real    mass_combust           !biomass combust (g DM/day/stand)
    
 !_____________ Initialize
    mass_combust = 0.000
    
 !_____________ Determine cohort structure
-   cohort_lai      (:,:) = 0.0     !(location,layer) crown area for each cohort (m2)
-   cohort_crowded  (:,:) = .false. !(location,layer) crowded flag for each cohort
-   id_location     (:)   = 0       !(tree_number)    location number that each tree belongs
-   id_layer        (:)   = 0       !(tree_number)    layer number that each tree belongs
-   
-!$omp parallel
-!$omp do private(no,x)
-   Do no=1, Max_no 
-   If ( tree_exist(no) ) then
-      
-!      id_location(no) = 1+int(bole_x(no)/20) + int(0.99999+Max_loc/20.0) * int(bole_y(no)/20)  !!!>>>>>>>>>>>>TN:rm
-      id_location(no) = 1+int(bole_x(no)/20) + int(0.99999+GRID%Max_y/20.0) * int(bole_y(no)/20)  !!!<<<<<<<<<<<<TN:add これで良いかわからない。要確認
-      
-      x = height(no)*STEP+1.3 !x: tree height (m)
-      if     (x<Layer_top(1)) then ;id_layer(no) = 1
-      elseif (x<Layer_top(2)) then ;id_layer(no) = 2
-      elseif (x<Layer_top(3)) then ;id_layer(no) = 3
-      elseif (x<Layer_top(4)) then ;id_layer(no) = 4
-      else                         ;id_layer(no) = 5
-      endif
-      
-      cohort_lai(id_location(no),id_layer(no)) = &
-      cohort_lai(id_location(no),id_layer(no)) + la(no)*SLA(pft(no))
-      
-   End if
-   End do
-!$omp end do
-   
-!$omp do private(i,j)
-!   Do i=1, (int(0.99999+Max_loc/20.0))**2 !for each location !!!>>>>>>>>>>>>TN:rm
-   Do i=1, int(0.99999+GRID%Max_x/20.0)*int(0.99999+GRID%Max_y/20.0) !for each location !!!<<<<<<<<<<<<TN:add これで良いかわからない。要確認
-   Do j=1, 5                              !for each layer
-      if ( cohort_lai(i,j)/400 > LAI_max_cohort ) cohort_crowded(i,j)=.true.
-   End do
-   End do
-!$omp end do
+!   cohort_lai      (:,:) = 0.0     !(location,layer) crown area for each cohort (m2)
+!   cohort_crowded  (:,:) = .false. !(location,layer) crowded flag for each cohort
+!   id_location     (:)   = 0       !(tree_number)    location number that each tree belongs
+!   id_layer        (:)   = 0       !(tree_number)    layer number that each tree belongs
+!   
+!   Do no=1, Max_no 
+!   If ( tree_exist(no) ) then
+!      
+!      id_location(no) = 1+int(bole_x(no)/20) + 5*int(bole_y(no)/20) 
+!      
+!      x = height(no)*STEP+1.3 !x: tree height (m)
+!      if     (x<Layer_top(1)) then ;id_layer(no) = 1
+!      elseif (x<Layer_top(2)) then ;id_layer(no) = 2
+!      elseif (x<Layer_top(3)) then ;id_layer(no) = 3
+!      elseif (x<Layer_top(4)) then ;id_layer(no) = 4
+!      else                         ;id_layer(no) = 5
+!      endif
+!      
+!      cohort_lai(id_location(no),id_layer(no)) = &
+!      cohort_lai(id_location(no),id_layer(no)) + la(no)*SLA(pft(no))
+!      
+!   End if
+!   End do
+!   
+!   Do i=1, (int(0.99999+Max_loc/20.0))**2 !for each location
+!   Do j=1, 5                              !for each layer
+!      if ( cohort_lai(i,j)/400 > LAI_max_cohort ) cohort_crowded(i,j)=.true.
+!   End do
+!   End do
    
 !_____________ Each individual of woody PFT procedure
+!$omp parallel
 !$omp do private(no,p,a1,a2,a3,a4,a6),reduction(+:mass_combust)
 DO no=1, Max_no 
 IF ( .not. tree_exist(no)     ) cycle
@@ -1890,6 +2384,7 @@ if (x<1.0) cycle
    x = min( x, PI*CD_max(p)*CD_max(p)/4.0           )
    x = min( x, PI*radius_limit(no)*radius_limit(no) )
    x = max( x, 0.001                                )
+   x = min( x, crown_area(no) * 1.5                 )
    
    crown_area    (no) = x
    crown_diameter(no) = 2 * sqrt(x/PI)
@@ -1946,7 +2441,7 @@ mass_combust = 0.0
   !x = tmp_air_RunningRecord(1)
   
   !effect_tmp = exp( 0.230259 * (x-20.0) ) !Q10 method
-   effect_tmp = exp( 308.56 * ( 1.0/66.02 - 1.0/( max(-45.0, x)+46.02) ) )
+   effect_tmp = exp( 308.56 * ( 1.0/56.02 - 1.0/( max(-45.0, x)+46.02) ) )
    
    x = (sum(pool_w(1:5))/5.0) / W_fi / Depth
    effect_mois = 0.25 + 0.75 * x
@@ -1980,6 +2475,8 @@ mass_combust = 0.0
    pool_som_int     = pool_som_int     + mass_decomp * (1.00-F_air) * F_inter
    pool_som_slow    = pool_som_slow    + mass_decomp * (1.00-F_air) * (1.00 - F_inter)
    mass_combust     = mass_combust     + mass_decomp * F_air
+   
+   flux_c_som_RR(1) =                    mass_decomp * (1.00-F_air)
    
 !_____________ Decomposition procedure2, s.o.m. with intermediated composition rate
    mass_decomp  = pool_som_int * d_rate_som_int
