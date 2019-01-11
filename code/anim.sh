@@ -1,2 +1,2 @@
-convert -layers optimize -delay 20 output2/png/*.png output2/png/fukido_mangrove.gif
+convert -layers optimize -delay 20 output4/png2/*.png output4/gif/fukido_mangrove2.gif
 #rm *.png

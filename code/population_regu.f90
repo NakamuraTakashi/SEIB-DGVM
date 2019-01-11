@@ -98,7 +98,7 @@ SUBROUTINE establish (GlobalZone)
       if ( gdd_20yr_ave         >=   GDD_max (p)     ) then; est_capacity(p)=.false. ;endif
       if ( gdd_20yr_ave         <=   GDD_min (p)     ) then; est_capacity(p)=.false. ;endif
       if ( dry_month            >    DM_max  (p)     ) then; est_capacity(p)=.false. ;endif
-      if ( Life_type(p)==2 .and. dfl_fire>50*365     ) then; est_capacity(p)=.false. ;endif
+!      if ( Life_type(p)==2 .and. dfl_fire>50*365      ) then; est_capacity(p)=.false. ;endif
       
       if     (GlobalZone==1) then
         !African continent
@@ -239,9 +239,8 @@ Do j = 1, GRID%N_y !!!<<<<<<<<<<<<TN:add
    !determine new sapling ID-number
    do while ( tree_exist(new) )
       new = new + 1
-      if ( new > Max_no ) return !!!<<<<<<<<<<<<TN:add ??? bug fix ????
+      if ( new > Max_no ) return
    end do
-!   if ( new > Max_no ) return !!!>>>>>>>>>>>>TN:rm ??? bug fix ????
    
    !initiate new sapling
    pft           (new) = k
@@ -361,6 +360,11 @@ SUBROUTINE grass_priority ()
                                          j = j + 1
    End do
    
+
+!TMP Activate for fixing C3-type grass
+!i =  1; !i:Number of C4 advantageous C4 month
+!j = 11; !j:Number of grass growing month
+
    flag_swap=.false.
    if (i>=(j-i)) then
    !under C4 dominant environment
@@ -413,7 +417,8 @@ Subroutine fire_regime (W_fi)
    real,parameter::Frac_trunk_AG = 0.7
    
    !Fraction of Trunk (and its litter) lost when fire occurs (0.0~1.0)
-   real,parameter::Frac_TrunkLostAtFire = 0.5
+!  real,parameter::Frac_TrunkLostAtFire = 0.5
+   real,parameter::Frac_TrunkLostAtFire = 1.0
    
 !Augment
    real,intent(IN):: W_fi        !field capacity   (m3/m3, 0.0 -> 1.0)
@@ -488,7 +493,6 @@ Subroutine fire_regime (W_fi)
    x         = fire_factor - 1.0
    fire_prob = fire_factor * EXP( x / (0.45*x*x*x + 2.83*x*x + 2.96*x + 1.04) )
    fire_prob = fire_prob / Day_in_Year !Convert fire probability from year-1 to day-1
-   
    if ( fire_prob <= randf()    ) return 
    
 !_____________ When fire occurs
@@ -863,11 +867,13 @@ SUBROUTINE mortality ()
    real sal          !top soil salinity (PSU)
    
 !From embedding FORMIX3
-!   !Crown area for each cohort (m2)
-!   real   ,dimension((int(0.99999+Max_loc/20.0))**2, 5)::cohort_ca     
-!   !crowded flag for each cohort
-!   logical,dimension((int(0.99999+Max_loc/20.0))**2, 5)::cohort_crowded
-!   integer,dimension(Max_no)::id_location
+   !Crown area for each cohort (m2)
+!   real   ,dimension((int(0.99999+Max_loc/20.0))**2, 5)::cohort_ca  !!!>>>>>>>>>>>>TN:rm    
+   real   ,dimension( int(0.99999+GRID%Max_x/20.0)*int(0.99999+GRID%Max_y/20.0), 5)::cohort_ca    !!!<<<<<<<<<<<<TN:add  
+   !crowded flag for each cohort
+!   logical,dimension((int(0.99999+Max_loc/20.0))**2, 5)::cohort_crowded  !!!>>>>>>>>>>>>TN:rm 
+   logical,dimension( int(0.99999+GRID%Max_x/20.0)*int(0.99999+GRID%Max_y/20.0), 5)::cohort_crowded    !!!<<<<<<<<<<<<TN:add 
+   integer,dimension(Max_no)::id_location
    !Frag wheather trees are crowded
    logical,dimension(Max_no)::tree_crowded
    !crown layer numner that each tree belongs
@@ -885,9 +891,9 @@ real    frac_overlap_sum
 real    cosine1, cosine2
 
 !_____________ Determine cohort structure
-!   cohort_ca      (:,:) = 0.0     !(location,layer) crown area for each cohort (m2)
-!   cohort_crowded (:,:) = .false. !(location,layer) crowded flag for each cohort
-!   id_location    (:)   = 0       !(tree_number)    location number that each tree belongs
+   cohort_ca      (:,:) = 0.0     !(location,layer) crown area for each cohort (m2)
+   cohort_crowded (:,:) = .false. !(location,layer) crowded flag for each cohort
+   id_location    (:)   = 0       !(tree_number)    location number that each tree belongs
    
    !determine height class for each tree
    Do no=1, Max_no 
@@ -970,32 +976,34 @@ real    cosine1, cosine2
       
    End do
    
-!   Do no=1, Max_no 
-!   If ( tree_exist(no) ) then
-!      
-!      id_location(no) = 1+int(bole_x(no)/20) + 5*int(bole_y(no)/20) 
-!      
-!      x = height(no)*STEP+1.3 !x: tree height (m)
-!      if     (x<Layer_top(1)) then ;id_layer(no) = 1
-!      elseif (x<Layer_top(2)) then ;id_layer(no) = 2
-!      elseif (x<Layer_top(3)) then ;id_layer(no) = 3
-!      elseif (x<Layer_top(4)) then ;id_layer(no) = 4
-!      else                         ;id_layer(no) = 5
-!      endif
-!      
-!      cohort_ca (id_location(no),id_layer(no)) = &
-!      cohort_ca (id_location(no),id_layer(no)) + &
-!      ( 25*(dbh_heartwood(no)+dbh_sapwood(no)) )**2 * PI / 4.0
-!      !crown_area(no)の代わりに、ポテンシャルの樹冠断面面積を使った
-!      
-!   End if
-!   End do
-!   
-!   Do i=1, (int(0.99999+Max_loc/20.0))**2 !for each location
-!   Do j=1, 5                              !for each layer
-!      if ( cohort_ca(i,j)/400 > Frac_crowded ) cohort_crowded(i,j)=.true.
-!   End do
-!   End do
+   Do no=1, Max_no 
+   If ( tree_exist(no) ) then
+      
+!      id_location(no) = 1+int(bole_x(no)/20) + int(0.99999+Max_loc/20.0) * int(bole_y(no)/20)  !!!>>>>>>>>>>>>TN:rm
+      id_location(no) = 1+int(bole_x(no)/20) + int(0.99999+GRID%Max_x/20.0) * int(bole_y(no)/20)  !!!<<<<<<<<<<<<TN:add
+      
+      x = height(no)*STEP+1.3 !x: tree height (m)
+      if     (x<Layer_top(1)) then ;id_layer(no) = 1
+      elseif (x<Layer_top(2)) then ;id_layer(no) = 2
+      elseif (x<Layer_top(3)) then ;id_layer(no) = 3
+      elseif (x<Layer_top(4)) then ;id_layer(no) = 4
+      else                         ;id_layer(no) = 5
+      endif
+      
+      cohort_ca (id_location(no),id_layer(no)) = &
+      cohort_ca (id_location(no),id_layer(no)) + &
+      ( 25*(dbh_heartwood(no)+dbh_sapwood(no)) )**2 * PI / 4.0
+      !crown_area(no)の代わりに、ポテンシャルの樹冠断面面積を使った
+      
+   End if
+   End do
+   
+!   Do i=1, (int(0.99999+Max_loc/20.0))**2 !for each location !!!>>>>>>>>>>>>TN:rm
+   Do i=1, int(0.99999+GRID%Max_x/20.0)*int(0.99999+GRID%Max_y/20.0) !for each location !!!<<<<<<<<<<<<TN:add
+   Do j=1, 5                              !for each layer
+      if ( cohort_ca(i,j)/400 > Frac_crowded ) cohort_crowded(i,j)=.true.
+   End do
+   End do
    
 !_____________ Determine trees to be die 1
    death_list(:) = .false.
@@ -1020,8 +1028,8 @@ if ( tree_exist(no) .and. age(no)>1 ) then
          mort_greff = mort_greff * M4(p)
          
          !When crowded
-!         if ( cohort_crowded(id_location(no),id_layer(no)) ) mort_greff=M5(p)
-!         if (tree_crowded(no)) mort_greff=M5(p)
+         if ( cohort_crowded(id_location(no),id_layer(no)) ) mort_greff=M5(p)
+         if (tree_crowded(no)) mort_greff=M5(p)
          
 !!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add Mangrove feature ***tentative
       case (7,8) 
@@ -1056,10 +1064,10 @@ if ( tree_exist(no) .and. age(no)>1 ) then
    
    !mortality 2: bioclimic limits (based on 20yrs mean of coldest month temperature)
    if ( tmp_coldest_20yr_ave < TC_min(p) )                                       mort_lim=0.1
-   if ( Life_type(p)==2 .and. (tmp_hottest_20yr_ave-tmp_coldest_20yr_ave)<43.0 ) mort_lim=0.1
+   if ( Life_type(p)==2 .and. (tmp_hottest_20yr_ave-tmp_coldest_20yr_ave)<30.0 ) mort_lim=0.1
    
    !mortality 3: mortality by other factors
-   x = mass_leaf(no) + mass_trunk(no) + mass_root(no) + mass_stock(no) + mass_available(no)
+!   x = mass_leaf(no) + mass_trunk(no) + mass_root(no) + mass_stock(no) + mass_available(no)
    
    if ( height(no)-bole(no)<=2 .and. age(no)>3   ) mort_etc=0.1
    if ( dbh_heartwood(no)+dbh_sapwood(no) > 1.00 ) mort_etc=0.1
@@ -1091,6 +1099,9 @@ if ( tree_exist(no) .and. age(no)>1 ) then
    !Sum up all mortality components, and calculate probabilty of death  !!!!TN: mortalityは足し算で良いのか??要確認
    mort_total   = min(1.0, mort_greff + mort_lim + mort_etc)
    
+   !Trees gradually die if its annual NPP per crown cross-section area is less than 10gDM/yr/m2
+   if ( mort_regu1(no) / crown_area(no) < 10.0 .and. age(no) > 3 ) mort_total=0.05
+   
    !Determine whether die
    if ( mort_total>randf() ) death_list(no) = .true.
    
@@ -1101,10 +1112,10 @@ END DO
    death_list_gap(:) = .false.
    
 DO no=1, Max_no 
+   if ( .not. tree_exist(no) ) cycle
    
    !When gap forms
-   if ( (tree_exist(no)                            ) .and. &
-        (death_list(no)                            ) .and. &
+   if ( (death_list(no)                            ) .and. &
         (Life_type(pft(no)) == 1                   ) .and. &
         (height(no)*STEP+1.3 > Thres_height_GapForm) .and. &
         (Frac_GapForm > randf()                    )         ) then
@@ -1168,7 +1179,7 @@ END DO
       
       !Initialize tree
       tree_exist     (no) = .false.
-      pft            (no) = 1  
+      pft            (no) = 0  
       age            (no) = 0  
       height         (no) = 0  
       bole           (no) = 0  

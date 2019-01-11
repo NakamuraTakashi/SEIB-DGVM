@@ -2,9 +2,9 @@
 ! Output for Viewer
 !*************************************************************************************************
 SUBROUTINE output_for_viewer &
-   (Fn, LAT, LON, ALT, Albedo_soil0, W_fi, W_wilt, W_sat, W_mat, &
-   cloud, prec, humid, wind, tmp_air, tmp_soil)
-
+   (Fn, LAT, LON, ALT, Albedo_soil0, W_fi, W_wilt, W_sat, &
+   tmp_air, tmp_soil1, tmp_soil2, tmp_soil3, prec, rh, cloud, rad_short, rad_long, wind)
+   
 !_____________ Set variables
 !Namespace
    USE data_structure
@@ -30,24 +30,26 @@ SUBROUTINE output_for_viewer &
    real,intent(IN)::W_fi         !filed capacity  (m3/m3, 0.0 -> 1.0)
    real,intent(IN)::W_wilt       !wilting point   (m3/m3, 0.0 -> 1.0)
    real,intent(IN)::W_sat        !saturate point  (m3/m3, 0.0 -> 1.0)
-   real,intent(IN)::W_mat        !matrix potential
    
    !Climatic data (single precision)
-   real,intent(IN)::tmp_air  !2m air temperature              (Celcius) 
-   real,intent(IN)::tmp_soil !average soil temperature for 50cm depth (Celcius) 
-   real,intent(IN)::cloud    !total cloudiness                (fraction)
-   real,intent(IN)::prec     !precipitation                   (mm day-1)
-   real,intent(IN)::humid    !Specific humidity               (kg kg-1)
-   real,intent(IN)::wind     !wind velocity                   (m s-1)   
+   real,intent(IN)::tmp_air    !2m air temperature                (Celcius) 
+   real,intent(IN)::tmp_soil1  !Soil temperatures for layers 1~5   (Celcius) 
+   real,intent(IN)::tmp_soil2  !Soil temperatures for layers 6~10  (Celcius) 
+   real,intent(IN)::tmp_soil3  !Soil temperatures for layers 11~20 (Celcius) 
+   real,intent(IN)::prec       !Precipitation                     (mm day-1)
+   real,intent(IN)::rh         !Relative Humidity                 (%)
+   real,intent(IN)::cloud      !Total cloudiness                  (fraction)
+   real,intent(IN)::rad_short  !Shortwave radiation @ midday      (W m-2)
+   real,intent(IN)::rad_long   !Daily mean of longwave radiation  (W m-2)
+   real,intent(IN)::wind       !Wind velocity                     (m s-1)   
    
 !Local variables
    !character(len=3)                  PFT_no_string
-   real   ,dimension(PFT_no)       ::tmp0, tmp1, tmp2, tmp3
    real   ,dimension(PFT_no)       ::c_leaf, c_trunk, c_root, c_stock, c_available
    integer,dimension(PFT_no,0:41)::size_dist
    
-   integer i, p, no, type_grass
-   real    a1, a2, a3, b1, b2, b3, c1, c2, x
+   integer i, p, no, type_grass, count
+   real    a1, a2, a3, a4, a5, a6, b1, b2, b3, c1, c2, x
    real    tree_density, Dist_step
    
 !_____________ Define local parameter, set local variable
@@ -61,19 +63,16 @@ SUBROUTINE output_for_viewer &
       type_grass = 4
    endif
    
-!_____________ Write File header
+!!_____________ Write File header (Write Only Onece at the Begginign of the simulation)
 If ( counter==1 .or.  (Flag_spinup_read .and. counter==1+Spinup_year*Day_in_Year) ) then
    
    !write out setting
-   a1 =  500.0 !A variable for providing consistency with older versions of the SEIB-Viewer
-   a2 = 1000.0 !A variable for providing consistency with older versions of the SEIB-Viewer
-   a3 = 1500.0 !A variable for providing consistency with older versions of the SEIB-Viewer
-   write (Fn, '( 3(f7.2,a), i5, a, i5, 3(a,f8.1), a,i4 )' )  &
-!   LAT,',',LON,',',ALT,',',Simulation_year,',',PFT_no,',',a1,',',a2,',',a3,',',Max_loc !!!>>>>>>>>>>>>TN:rm
-   LAT,',',LON,',',ALT,',',Simulation_year,',',PFT_no,',',a1,',',a2,',',a3,',',GRID%N_x !!!<<<<<<<<<<<<TN:add y方向の情報がない。要検討
+   write (Fn, '( 3(f7.2,a), i5, a,i5, a,i4,  a,i4 )' )  &
+!   LAT,',',LON,',',ALT,',',Simulation_year,',',PFT_no,',',Max_loc,',',NumSoil  !!!>>>>>>>>>>>>TN:rm
+   LAT,',',LON,',',ALT,',',Simulation_year,',',PFT_no,',',GRID%N_x,',',NumSoil  !!!<<<<<<<<<<<<TN:add y方向の情報がない。要検討
    
-   write (Fn, '( f7.5,a,f7.5,a,f7.5,a,f7.5,a,f7.5 )' ) &
-   Albedo_soil0,',',W_fi,',',W_wilt,',',W_sat,',',W_mat
+   write (Fn, '( f7.5,a,f7.5,a,f7.5,a,f7.5 )' ) &
+   Albedo_soil0,',',W_fi,',',W_wilt,',',W_sat
    
    do p=1, PFT_no; write (Fn,'(i1,a$)'  ) Life_type(p),     ','; end do
    write (Fn,*)
@@ -91,7 +90,7 @@ Endif
 
 !_____________ Write Annual output
 If ( doy==1 ) then
-   
+   !Flag for existence of PFT
    write (Fn,*)
    do p=1, PFT_no
       i = 0
@@ -109,64 +108,26 @@ Endif
    counter
 
 !*** 2nd line (Climatic data)
-   write (Fn,'( 2(f5.1,a), f5.2,a, f6.2,a, f9.7,a, f5.2 )') &
-   tmp_air,',',tmp_soil,',',cloud,',',prec,',',humid,',',wind
+   write (Fn,'( 4(f5.1,a), f4.2,a, f6.2,a, f5.1,a, f6.2 ,a, f6.1 ,a, f6.1 )') &
+   tmp_air,',',tmp_soil1,',',tmp_soil2,',',tmp_soil3,',',cloud,',',prec,',',rh,',',wind,',',rad_short,',',rad_long
+   
+!*** 3rd line (Radiation properties on vegetation surface)
+   write (Fn,'( f4.2,a,f4.2,a,f4.2 )') &
+   albedo_mean,',',albedo_soil,',',albedo_leaf !,',',ir_tree,',',ir_grass
 
-!*** 3rd line (Physical status of air)
-   write (Fn,'( f6.1,a, 2(f8.3,a), f6.3,a, f6.3 )') &
-   ap,',',vp_sat,',',vp,',',dnsa,',',slope_vps
+!*** 4th line (Physical status of radiation)
+   write (Fn,'( f6.1,a, f6.1,a, f6.1,a, f6.1,a, f7.1,a, f6.1 )') &
+!   par_direct,',',par_diffuse,',',par*sum(par_grass_rel(:,:))/DivedG/DivedG,',',radnet_soil,',',radnet_veg, ',', radlong_up   !!!>>>>>>>>>>>>TN:rm
+   par_direct,',',par_diffuse,',',par*sum(par_grass_rel(:,:))/real(GRID%N_tot),',',radnet_soil,',',radnet_veg, ',', radlong_up !!!<<<<<<<<<<<<TN:add
 
-!*** 4th (Radiation properties on vegetation surface)
-   write (Fn,'( 5(f4.2,a) )') &
-   albedo_mean,',',albedo_soil,',',albedo_leaf,',',ir_tree,',',ir_grass
-
-!*** 5th line (Physical status of radiation)
-   write (Fn,'( f6.1,a, f6.1,a, f6.1,a, f6.1,a, f6.1,a, f6.1 )') &
-!   par_direct,',',par_diffuse,',',par*sum(par_grass_rel(:,:))/DivedG/DivedG,',',rad,',',radnet_soil,',',radnet_veg !!!>>>>>>>>>>>>TN:rm
-   par_direct,',',par_diffuse,',',par*sum(par_grass_rel(:,:))/GRID%N_tot,',',rad,',',radnet_soil,',',radnet_veg !!!<<<<<<<<<<<<TN:add
-
-!*** 6th line (Hydrogical varibales)
+!*** 5th line (Hydrogical varibales)
    write (Fn,'( f7.2, 3(a,f6.1), a,f8.1 )') &
    canopy_cond,',',sum(pool_w(1:5)),',',sum(pool_w(6:10)),',',sum(pool_w(11:20)),',',pool_snow
    
-!*** 7th~ lines (PFT specific variables)
-   !Write each PFT data
-   tmp0(:)=0.0 ; tmp1(:)=0.0 ; tmp2(:)=0.0 ; tmp3(:)=0.0
-   Do no=1, Max_no
-      if ( .not. tree_exist(no)     ) cycle
-      if ( .not. phenology(pft(no)) ) cycle
-      if ( la(no) <=0.0             ) cycle
-      
-      p = pft(no)
-      tmp0(p) = tmp0(p) + 1
-      tmp1(p) = tmp1(p) + lue   (no)
-      tmp2(p) = tmp2(p) + co2cmp(no)
-      tmp3(p) = tmp3(p) + psat  (no)
-   End do
-   
-   Do p=1, PFT_no
-      tmp1(p) = tmp1(p) / Max(1.0, tmp0(p))
-      tmp2(p) = tmp2(p) / Max(1.0, tmp0(p))
-      tmp3(p) = tmp3(p) / Max(1.0, tmp0(p))
-   End do
-   
-!   i = int( sum(par_grass_rel(:,:)) / DivedG / DivedG ) !!!>>>>>>>>>>>>TN:rm
-   i = int( sum(par_grass_rel(:,:)) / GRID%N_tot ) !!!<<<<<<<<<<<<TN:add！
-   i = max(1,i)
-   if (pft_exist(C3g_no)) then
-      tmp1(C3g_no) = lue_grass   (i) ; tmp1(C4g_no) = 0.0
-      tmp2(C3g_no) = co2cmp_grass(i) ; tmp2(C4g_no) = 0.0
-      tmp3(C3g_no) = psat_grass  (i) ; tmp3(C4g_no) = 0.0
-   else
-      tmp1(C4g_no) = lue_grass   (i) ; tmp1(C3g_no) = 0.0
-      tmp2(C4g_no) = co2cmp_grass(i) ; tmp2(C3g_no) = 0.0
-      tmp3(C4g_no) = psat_grass  (i) ; tmp3(C3g_no) = 0.0
-   endif
-   
+!*** 6th~ lines (PFT specific variables)
    Do p=1, PFT_no
    if (pft_exist(p)) then
-      write (Fn,'( f5.2, a, f6.3, a, f7.3, a, f6.1 )') &
-      lai_RunningRecord(1,p),',',tmp1(p),',',tmp2(p),',',tmp3(p)
+      write (Fn,'( f5.2)') lai_RunningRecord(1,p)
    endif
    End do
    
@@ -182,30 +143,28 @@ IF ( Day_of_Month(doy) == Day_in_month(Month(doy)) ) then
 !   tree_density = real(i) * ( (100.0/Max_loc)**2 ) !!!>>>>>>>>>>>>TN:rm
    tree_density = real(i) * ( 10000.0/real(GRID%Area) ) !!!<<<<<<<<<<<<TN:add 単位要チェック
    
-   write (Fn, '(i5, a, i2, a, i2, a, f8.1, a, i2)')  &
-         year,',',Month(doy),',',biome,',',tree_density,',',type_grass
+   write (Fn, '(i5, a, i2, a, i2, a, f8.1, a, i2, a, f6.1)')  &
+         year,',',Month(doy),',',biome,',',tree_density,',',type_grass,',',co2atm
    
 !*** 2nd line (Carbon strage & flux)
    !Sumup carbon properties
    i  = Day_in_month(Month(doy))
-!   a1 = sum(flux_c_uptake_RR (1:i)) * C_in_drymass /Max_loc/Max_loc/ 100.0 !carbon uptake   (Mg C/month/ha) !!!>>>>>>>>>>>>TN:rm
-   a1 = sum(flux_c_uptake_RR (1:i)) * C_in_drymass /real(GRID%Area)/ 100.0 !carbon uptake   (Mg C/month/ha) !!!<<<<<<<<<<<<TN:add 単位要チェック
-   a2 = ( sum(flux_c_mnt_RR(1:i)) + sum(flux_c_mnt_RR(1:i)) + sum(flux_c_htr_RR(1:i)) + sum(flux_c_fir_RR(1:i)) ) &
-!                                    * C_in_drymass /Max_loc/Max_loc/ 100.0 !carbon emission (Mg C/month/ha) !!!>>>>>>>>>>>>TN:rm
-                                    * C_in_drymass /real(GRID%Area)/ 100.0 !carbon emission (Mg C/month/ha) !!!<<<<<<<<<<<<TN:add 単位要チェック
+!   x  = C_in_drymass/Max_loc/Max_loc/100.0 !(gDM/Stand) -> (MgC/ha) !!!>>>>>>>>>>>>>>>>>TN:rm
+   x  = C_in_drymass/real(GRID%Area)/100.0 !(gDM/Stand) -> (MgC/ha) !!!<<<<<<<<<<<<<<<<<TN: add
    
-!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:rm
-!   b1 = (pool_litter_trunk + pool_litter_leaf + pool_litter_root + pool_litter_ag + pool_litter_bg) &
-!                      * C_in_drymass / Max_loc / Max_loc / 100.0 !Litter  (Mg C/ha)
-!   b2 = pool_som_int  * C_in_drymass / Max_loc / Max_loc / 100.0 !SOM int (Mg C/ha)
-!   b3 = pool_som_slow * C_in_drymass / Max_loc / Max_loc / 100.0 !SOM slow(Mg C/ha)
-!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:rm
-!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:add
-   b1 = (pool_litter_trunk + pool_litter_leaf + pool_litter_root + pool_litter_ag + pool_litter_bg) &
-                      * C_in_drymass / real(GRID%Area) / 100.0 !Litter  (Mg C/ha)
-   b2 = pool_som_int  * C_in_drymass / real(GRID%Area) / 100.0 !SOM int (Mg C/ha)
-   b3 = pool_som_slow * C_in_drymass / real(GRID%Area) / 100.0 !SOM slow(Mg C/ha)
-!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:add
+   !Carbon fluxes (MgC/ha/month)
+   a1 = sum(flux_c_uptake_RR (1:i))                           * x !Carbon uptake
+   a2 = ( sum(flux_c_mnt_RR(1:i)) + sum(flux_c_gro_RR(1:i)) ) * x !Plant respiration
+   a3 = sum(flux_c_htr_RR(1:i))                               * x !Heterotphic respiration
+   a4 = sum(flux_c_lit_RR(1:i))                               * x !Biomass to Litter flux
+   a5 = sum(flux_c_som_RR(1:i))                               * x !Litter to SOM flux
+   a6 = sum(flux_c_fir_RR(1:i))                               * x !Fire emission
+   
+   !Litter and SOM carbon (Mg C/ha)
+   b1 = (pool_litter_trunk+ pool_litter_leaf+ pool_litter_root+ pool_litter_ag+ pool_litter_bg) * x
+                          !Litter  (Mg C/ha)
+   b2 = pool_som_int  * x !SOM int (Mg C/ha)
+   b3 = pool_som_slow * x !SOM slow(Mg C/ha)
    
    !Woody carbon (Mg C/ha)
    c1 = 0.0
@@ -222,16 +181,20 @@ IF ( Day_of_Month(doy) == Day_in_month(Month(doy)) ) then
 !   c2 = c2 * C_in_drymass / 100.0 / (Max_loc**2) !!!>>>>>>>>>>>>TN:rm
    c2 = c2 * C_in_drymass / 100.0 / real(GRID%Area) !!!<<<<<<<<<<<<TN:add 単位要チェック
    
-   write (Fn, '( 2(f6.1,a), 4(f8.1,a), f6.1 )') &
-         a1,',',a2,',',b1,',',b2,',',b3,',',c1,',',c2
+   write (Fn, '( 6(f6.1,a), 5(f8.1,a), f6.1 )') &
+         a1,',',a2,',',a3,',',a4,',',a5,',',a6,',',b1,',',b2,',',b3,',',c1,',',c2
    
 !*** 3rd line (Water flux)
-   write (Fn, '( f8.2, a, f8.2, a, f8.2, a, f8.2, a, f8.2 )') &
-      sum(  prec_RunningRecord(1:Day_of_Month(doy))),',', &
-      sum(flux_ro_RunningRecord(1:Day_of_Month(doy))),',', &
-      sum(flux_ic_RunningRecord(1:Day_of_Month(doy))),',', &
-      sum(flux_ev_RunningRecord(1:Day_of_Month(doy))),',', &
-      sum(flux_tr_RunningRecord(1:Day_of_Month(doy)))       
+   write (Fn, '( 8(f8.2,a), f8.2 )') &
+      sum(  prec_RunningRecord  (1:Day_of_Month(doy))),',', &
+      sum(flux_ro1_RunningRecord(1:Day_of_Month(doy))),',', &
+      sum(flux_ro2_RunningRecord(1:Day_of_Month(doy))),',', &
+      sum(flux_ic_RunningRecord (1:Day_of_Month(doy))),',', &
+      sum(flux_ev_RunningRecord (1:Day_of_Month(doy))),',', &
+      sum(flux_tr_RunningRecord (1:Day_of_Month(doy))),',', &
+      sum(flux_sl_RunningRecord (1:Day_of_Month(doy))),',', &
+      sum(flux_tw_RunningRecord (1:Day_of_Month(doy))),',', &
+      sum(flux_sn_RunningRecord (1:Day_of_Month(doy)))       
    
 !*** 4th line ~ (for each PFT)
    !Sumup woody biomass (Mg C / ha)
@@ -348,7 +311,41 @@ IF ( Doy==Day_in_Year ) then
    endif
    END DO
    
+   !Write wild fire flag
+   if (dfl_fire <= 365 .and. year>=2 ) then
+      write (Fn,'(i1)') 1
+   else
+      write (Fn,'(i1)') 0
+   endif
+   
 END IF
+
+!_____________ Write Annual output (Forest Structure)
+IF ( Doy==Day_in_Year ) then
+!Count tree number
+   count = 0
+   Do i=1, Max_no
+      if ( tree_exist(i) ) count = count +1
+   End do
+   
+!Write data
+   write (Fn,'(i4,a1)') count,','
+   Do i=1, Max_no
+   if (tree_exist(i)) then
+      write (Fn,'( 4(f6.1,a), 2(f7.3,a), 2(f7.4,a), i2,a )') &
+      bole_x(i)                           ,',',& !1: bole location x
+      bole_y(i)                           ,',',& !2: bole location y
+      crown_x(i)                          ,',',& !3: crown location x
+      crown_y(i)                          ,',',& !4: crown location y
+      real(bole(i)) * STEP + 1.3          ,',',& !5: bole height
+      real( height(i) - bole(i) ) * STEP  ,',',& !6: foliage height
+      dbh_heartwood(i) + dbh_sapwood(i)   ,',',& !7: dbh
+      crown_diameter(i)/2.0               ,',',& !8: crown_radius
+      pft(i)                              ,','   !9: pft
+      
+   end if
+   End do
+End if
 
 END SUBROUTINE output_for_viewer
 
@@ -391,8 +388,10 @@ SUBROUTINE output_annual (Fn)
    real    lai_mean_wood  !Annual mean of woody LAI (m2 m-2)
    real    lai_mean_grass !Annual mean of grass LAI (m2 m-2)
    
+   integer ald            !Annual maximum of Active layer Depth (Step)
+   integer ald_doy        !Day of Year when Active-layer-Depth reaches max
    integer tree_counter   !tree counter
-   integer no,i           !loop counters
+   integer no,i,j         !loop counters
    
    real x, y              !For general usage
    
@@ -441,6 +440,22 @@ SUBROUTINE output_annual (Fn)
       lai_mean_grass = lai_mean_grass + x / real(Day_in_Year)
    enddo
    
+!TMP
+!ald: maximum seasonal depth of active layer
+!ald_doy: DOY when ald reaches
+   ald = 0
+   ald_doy = 1
+   do i=1, Day_in_Year
+      do j=1,NumSoil ; if (tmp_soil_RunningRecord(i,j)<0.0) exit ; enddo
+      
+      if (j-1>ald) then
+         ald     = j-1
+         ald_doy = 366-i
+      endif
+      
+      if (ald==NumSoil) exit
+   enddo
+   
 !Others
    pool_litter = pool_litter_trunk + pool_litter_leaf + pool_litter_root + pool_litter_ag + pool_litter_bg
    nee         = sum(flux_c_uptake_RR(:)) &
@@ -448,13 +463,13 @@ SUBROUTINE output_annual (Fn)
    
 !_____________ Write title and data ***
    if (year==1) then
-   write (Fn, '(82a)', advance='no') &
-   'Year, TreeDensity, Heigh, DBH, BA, MassW, MassW_ag, MassG, Litter, SOM, GPP, NPP, '
-   write (Fn, '(76a)') &
-   'NEE, LAImax_W, LAImax_G, LAImean_W, LAImean_G, ccon, RO, Biome, ALD, ALD_DOY'
+   write (Fn, '(80a)', advance='no') &
+   'Year, TreeDensity, Heigh, DBH, BA, MassW, MassW_ag, MassG, Litter, SOM, GPP, NPP'
+   write (Fn, '(79a)') &
+   ' , NEE, LAImax_W, LAImax_G, LAImean_W, LAImean_G, ccon, RO, Biome, ALD, ALD_DOY'
    end if
    
-   write (Fn,'( i4,a, 2(f7.1,a), 2(f9.3,a), 5(f6.1,a), 2(f5.1,a), f6.1,a, 4(f5.1,a), f7.3,a, f6.1,a, i3 )') &
+   write (Fn,'( i4,a, 2(f7.1,a), 2(f9.3,a), 5(f6.1,a), 2(f5.1,a), f6.1,a, 4(f5.1,a), f7.3,a, f6.1,a, 2(i3,a), i3 )') &
    year                                      , ',', & ! 1 Simulation year
 !   tree_counter * ( (100.0/Max_loc)**2 )     , ',', & ! 2 Tree density (ha-1) !!!>>>>>>>>>>>>TN:rm
    tree_counter * ( 10000.0/real(GRID%Area) )     , ',', & ! 2 Tree density (ha-1) !!!<<<<<<<<<<<<TN:add 単位要チェック
@@ -474,8 +489,11 @@ SUBROUTINE output_annual (Fn)
    lai_mean_wood                             , ',', & !16 Annual mean of woody LAI (m2 m-2)
    lai_mean_grass                            , ',', & !17 Annual mean of grass LAI (m2 m-2)
    canopy_cond                               , ',', & !18 Canopy conductance
-   sum(flux_ro_RunningRecord(:))             , ',', & !19 Runoff (mm year-1)
-   biome                                              !20 Biome type
+     sum(flux_ro1_RunningRecord(:))                 &
+   + sum(flux_ro2_RunningRecord(:))          , ',', & !19 Runoff (mm year-1)
+   biome                                     , ',', & !20 Biome type
+   ald                                       , ',', & !21 Annual Max of Active Layer Depth (Step)
+   ald_doy                                            !22 DOY of the ALD reached
    
 END SUBROUTINE output_annual
 
@@ -509,6 +527,7 @@ SUBROUTINE output_forest (Fn)
 !Write data
 !   write (Fn,'(i4,a1)') count,',' !!!>>>>>>>>>>>>TN:rm
    write (Fn,'(i9,a1)') count,',' !!!<<<<<<<<<<<<TN:add
+   write (*,*) 'Number of tree:', count !!!<<<<<<<<<<<<TN:add
    Do i=1, Max_no
    if (tree_exist(i)) then
 !      write (Fn,'( 4(f6.1,a), 2(f7.3,a), 2(f7.4,a), i2,a )') & !!!>>>>>>>>>>>>TN:rm
@@ -570,7 +589,7 @@ END SUBROUTINE output_air
 !**************************************************************************************************
 ! Output climate variables
 !**************************************************************************************************
-SUBROUTINE output_climate (Fn, cloud, prec, humid, wind, tmp_air, tmp_soil)
+SUBROUTINE output_climate (Fn, cloud, prec, rh, wind, tmp_air, tmp_soil, rad_short, rad_long)
 
 !_____________ Set variables
 !Namespace
@@ -586,19 +605,21 @@ SUBROUTINE output_climate (Fn, cloud, prec, humid, wind, tmp_air, tmp_soil)
    real,intent(IN)::tmp_soil  ! average soil temperature for 50cm depth (Celcius)
    real,intent(IN)::cloud     ! total cloudness (fraction)
    real,intent(IN)::prec      ! precipitation (mm day-1)
-   real,intent(IN)::humid     ! humidity (kg kg-1)
+   real,intent(IN)::rh        ! relative humidity (%)
    real,intent(IN)::wind      ! wind velocity (m s-1)
+   real,intent(IN)::rad_short ! 
+   real,intent(IN)::rad_long  ! 
    
 !_____________ Main part
 !Write title
    if (year == 1 .and. doy==1) then
    write (Fn,*) &
-   '  yr  doy    air   soil  cloud    prec   humid  vp/vpsat   wind'
+   '  yr  doy    air   soil  cloud    prec   rh  vp/vpsat   wind  rad_short  rad_long'
    end if
    
 !Write data
-   write (Fn,'(2i5, 3f7.1, f8.2, f9.7, f8.3, f7.1)') &
-   year, doy, tmp_air, tmp_soil, cloud, prec, humid, vp/vp_sat, wind
+   write (Fn,'(2i5, 2f7.1, f5.2, f8.2, f6.1, f8.3, 3f7.1 )') &
+   year, doy, tmp_air, tmp_soil, cloud, prec, rh, vp/vp_sat, wind, rad_short, rad_long
    
 END SUBROUTINE output_climate
 
@@ -607,7 +628,7 @@ END SUBROUTINE output_climate
 !**************************************************************************************************
 ! Output air variables
 !**************************************************************************************************
-SUBROUTINE output_radiation (Fn)
+SUBROUTINE output_radiation (Fn, rad_short)
 
 !_____________ Set variables
 !Namespace
@@ -620,19 +641,20 @@ SUBROUTINE output_radiation (Fn)
    implicit none
    
 !Augments
-   integer,intent(IN)::Fn   !File I/O number
+   integer,intent(IN)::Fn        !File I/O number
+   real   ,intent(IN)::rad_short 
    
 !_____________ Main part
 !Write title
    if (year == 1 .and. doy==1) then
    write (Fn,*) &
-   ' Yr doy  s_hgt dlen  rad    par     par_grass'
+   ' Yr doy  s_hgt dlen  rad_short    par     par_grass'
    end if
    
 !Write data
    write (Fn,'(2i4, 2f6.1, 1f7.1, 2f8.1)') &
-!   year, doy, sl_hgt(doy), dlen(doy), rad, par, par*sum(par_grass_rel(:,:))/DivedG/DivedG !!!>>>>>>>>>>>>TN:rm
-   year, doy, sl_hgt(doy), dlen(doy), rad, par, par*sum(par_grass_rel(:,:))/real(GRID%N_tot) !!!<<<<<<<<<<<<TN:add
+!   year, doy, sl_hgt(doy), dlen(doy), rad_short, par, par*sum(par_grass_rel(:,:))/DivedG/DivedG !!!>>>>>>>>>>>>TN:rm
+   year, doy, sl_hgt(doy), dlen(doy), rad_short, par, par*sum(par_grass_rel(:,:))/real(GRID%N_tot) !!!<<<<<<<<<<<<TN:add
    
 END SUBROUTINE output_radiation
 
@@ -660,7 +682,7 @@ SUBROUTINE output_netradiation (Fn)
    
    if (year == 1 .and. doy==1) then
       write (Fn,'(a100)') &
-     'Yr, doy, albedo_soil, albedo_leaf, albedo_mean, radnet_soil, radnet_veg, radnet_long'
+     'Yr, doy, albedo_soil, albedo_leaf, albedo_mean, radnet_soil, radnet_veg, radlong_up'
    end if
    
 !Write data
@@ -671,7 +693,7 @@ SUBROUTINE output_netradiation (Fn)
    write (Fn,'(f5.2,a)' , advance='no') albedo_mean, ','
    write (Fn, 1         , advance='no') radnet_soil, ','
    write (Fn, 1         , advance='no') radnet_veg , ','
-   write (Fn, 1         , advance='no') radnet_long
+   write (Fn, 1         , advance='no') radlong_up
    write (Fn,*)
    
 END SUBROUTINE output_netradiation
@@ -808,7 +830,7 @@ SUBROUTINE output_wflux (Fn, prec)
 !_____________ Main part
 !Preparation
    !aet: actual evapotranspiration (mm/m2/day or kg/m2/day)
-   aet = flux_tr_RunningRecord(1) + flux_ev_RunningRecord(1) + flux_ic_RunningRecord(1)
+   aet = flux_tr_RunningRecord(1) + flux_ev_RunningRecord(1) + flux_ic_RunningRecord(1) + flux_sl_RunningRecord(1)
    
    !lh: latent heat of water vaporization (MJ/kg H2O)
    !    2.259  (= latent heat at 100 degree Celsius in MJ/kg H2O)
@@ -828,7 +850,7 @@ SUBROUTINE output_wflux (Fn, prec)
    write (Fn,'(i5,a)', advance="no") year,','
    write (Fn,'(i3,a)', advance="no") doy ,','
    write (Fn, 1, advance="no") prec                    ,','
-   write (Fn, 1, advance="no") flux_ro_RunningRecord(1), ','
+   write (Fn, 1, advance="no") flux_ro1_RunningRecord(1)+flux_ro2_RunningRecord(1), ','
    write (Fn, 1, advance="no") flux_ic_RunningRecord(1), ','
    write (Fn, 1, advance="no") flux_ev_RunningRecord(1), ','
    write (Fn, 1, advance="no") flux_tr_RunningRecord(1), ','
@@ -1065,3 +1087,208 @@ SUBROUTINE output_lai(Fn)
    write (Fn,'( '//string//'(f4.1,1x) )') lai_RunningRecord(1,:)
    
 END SUBROUTINE output_lai
+
+
+
+!*************************************************************************************************
+! output file maker (for global grid) (called @ the end of each month)
+!*************************************************************************************************
+SUBROUTINE output_global (Fn, W_fi, W_wilt, tmp_soil_Today)
+
+!_____________ Set variables
+!Namespace
+   USE data_structure
+   USE time_counter
+   USE vegi_status_current1
+   USE vegi_status_current2
+   USE grid_status_current1
+   USE grid_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
+   implicit none
+   
+!Arguments
+   integer,intent(IN)::Fn                      !File I/O number
+   real   ,intent(IN)::W_fi                    !Filed capacity   (m3/m3, 0.0 -> 1.0)
+   real   ,intent(IN)::W_wilt                  !Wilting point    (m3/m3, 0.0 -> 1.0)
+   real   ,intent(IN)::tmp_soil_Today(NumSoil) !Soil temperature for each layers (Celcius)
+   
+!Local variables
+   !for output variables
+   real    woody_carbon, grass_carbon, som1, som2, som3   !(kg C / m2)
+   real    gpp_out, npp_out, nep_out, htr_out, npp_tree, npp_C3g, npp_C4g !(kg C / m2 / month)
+   real    mean_woody_mass      !(g C / tree)
+   real    tree_density         !(N / ha)
+   real    lai_wood             !(m2/m2)
+   real    ald                  !Active layer depth (m)
+   real    water_available      !Available water on the top 5 soil layers [mm]
+   
+   integer dry_days             !(day/year)
+   
+   !for general usage
+   integer  no, i, j, k, p
+   real     x, y
+   
+!_____________ Prepare output variables
+   !common procedure
+   x = 0.0 !sum of tree biomass (g dm)
+   i = 0   !sum of tree number        
+   do no=1, Max_no
+   if (tree_exist(no)) then
+      x = x + mass_leaf(no)+mass_trunk(no)+mass_root(no)+mass_stock(no)+mass_available(no)
+      i = i + 1
+   endif
+   enddo
+   
+   !tree_density (N / ha)
+!   tree_density = 10000.0 * real(i) / Max_loc / Max_loc !!!>>>>>>>>>>>>>>>TN: rm
+   tree_density = 10000.0 * real(i) / real(GRID%Area) !!!<<<<<<<<<<<<<<<TN: add
+   
+   !mean_woody_mass (kg C / tree)
+   mean_woody_mass = x * C_in_drymass / max(1.0, real(i)) / 1000.0
+   
+   !woody_carbon (kg C / m2)
+!   woody_carbon = x * C_in_drymass / Max_loc / Max_loc / 1000.0 !!!>>>>>>>>>>>>>>>TN: rm
+   woody_carbon = x * C_in_drymass / real(GRID%Area) / 1000.0 !!!<<<<<<<<<<<<<<<TN: add
+   
+   !grass_carbon (kg C / m2)
+   grass_carbon = sum(gmass_leaf(:,:)) + sum(gmass_root(:,:)) + sum(gmass_stock(:,:)) + sum(gmass_available(:,:))
+!   grass_carbon = grass_carbon * C_in_drymass / 1000.0 / Max_loc / Max_loc !!!>>>>>>>>>>>>>>>TN: rm
+   grass_carbon = grass_carbon * C_in_drymass / 1000.0 / real(GRID%Area) !!!<<<<<<<<<<<<<<<TN: add
+   
+   !soil_carbon (kg C / m2)
+!   som1 = (pool_litter_trunk + pool_litter_leaf + pool_litter_root + pool_litter_ag + pool_litter_bg) & !!!>>>>>>>>>>>>>>>TN: rm
+!                        * C_in_drymass / Max_loc / Max_loc / 1000.0 !!!>>>>>>>>>>>>>>>TN: rm
+!   som2 = pool_som_int  * C_in_drymass / Max_loc / Max_loc / 1000.0 !!!>>>>>>>>>>>>>>>TN: rm
+!   som3 = pool_som_slow * C_in_drymass / Max_loc / Max_loc / 1000.0 !!!>>>>>>>>>>>>>>>TN: rm
+   som1 = (pool_litter_trunk + pool_litter_leaf + pool_litter_root + pool_litter_ag + pool_litter_bg) & !!!<<<<<<<<<<<<<<<TN: add
+                        * C_in_drymass / real(GRID%Area) / 1000.0 !!!<<<<<<<<<<<<<<<TN: add
+   som2 = pool_som_int  * C_in_drymass / real(GRID%Area) / 1000.0 !!!<<<<<<<<<<<<<<<TN: add
+   som3 = pool_som_slow * C_in_drymass / real(GRID%Area) / 1000.0 !!!<<<<<<<<<<<<<<<TN: add
+   
+   !GPP & NPP (kg C / m2 / month)
+   i = Day_in_month(Month(doy)) !number of day of the current month (day)
+!   gpp_out   = Sum(gpp_RunningRecord(1:i, :)) * C_in_drymass / Max_loc / Max_loc / 1000.0 !!!>>>>>>>>>>>>>>>TN: rm
+!   npp_out   = Sum(npp_RunningRecord(1:i, :)) * C_in_drymass / Max_loc / Max_loc / 1000.0 !!!>>>>>>>>>>>>>>>TN: rm
+   gpp_out   = Sum(gpp_RunningRecord(1:i, :)) * C_in_drymass / real(GRID%Area) / 1000.0 !!!<<<<<<<<<<<<<<<TN: add
+   npp_out   = Sum(npp_RunningRecord(1:i, :)) * C_in_drymass / real(GRID%Area) / 1000.0 !!!<<<<<<<<<<<<<<<TN: add
+   
+   npp_tree  = 0.0
+   do p=1, PFT_no
+      if (p==C3g_no .or. p==C4g_no) cycle
+      npp_tree = npp_tree + Sum( npp_RunningRecord(1:i, p) )
+   enddo
+!   npp_tree = npp_tree                             * C_in_drymass / Max_loc / Max_loc / 1000.0 !!!>>>>>>>>>>>>>>>TN: rm
+!   
+!   npp_C3g   = Sum(npp_RunningRecord(1:i, C3g_no)) * C_in_drymass / Max_loc / Max_loc / 1000.0 !!!>>>>>>>>>>>>>>>TN: rm
+!   npp_C4g   = Sum(npp_RunningRecord(1:i, C4g_no)) * C_in_drymass / Max_loc / Max_loc / 1000.0 !!!>>>>>>>>>>>>>>>TN: rm
+   npp_tree = npp_tree                             * C_in_drymass / real(GRID%Area) / 1000.0 !!!<<<<<<<<<<<<<<<TN: add
+   
+   npp_C3g   = Sum(npp_RunningRecord(1:i, C3g_no)) * C_in_drymass / real(GRID%Area) / 1000.0 !!!<<<<<<<<<<<<<<<TN: add
+   npp_C4g   = Sum(npp_RunningRecord(1:i, C4g_no)) * C_in_drymass / real(GRID%Area) / 1000.0 !!!<<<<<<<<<<<<<<<TN: add
+   
+   !NEP (kg C / m2 / month)
+   i  = Day_in_month(Month(doy))
+   nep_out = sum(flux_c_uptake_RR(1:i)) &
+           - sum(flux_c_mnt_RR(1:i)) - sum(flux_c_gro_RR(1:i)) &
+           - sum(flux_c_htr_RR(1:i)) - sum(flux_c_fir_RR(1:i))  
+!   nep_out = nep_out * C_in_drymass / Max_loc / Max_loc / 1000.0 !!!>>>>>>>>>>>>>>>TN: rm
+   nep_out = nep_out * C_in_drymass / real(GRID%Area) / 1000.0 !!!<<<<<<<<<<<<<<<TN: add
+   
+   !Hetertrophic respiration (kg C / m2 / month)
+   i  = Day_in_month(Month(doy))
+   htr_out = sum( flux_c_htr_RR(1:i) )
+!   htr_out = htr_out * C_in_drymass / Max_loc / Max_loc / 1000.0 !!!>>>>>>>>>>>>>>>TN: rm
+   htr_out = htr_out * C_in_drymass / real(GRID%Area) / 1000.0 !!!<<<<<<<<<<<<<<<TN: add
+   
+   !Tree LAI (m2/m2)
+!   lai_wood = sum(la) / Max_loc / Max_loc !!!>>>>>>>>>>>>>>>TN: rm
+   lai_wood = sum(la) / real(GRID%Area) !!!<<<<<<<<<<<<<<<TN: add
+   
+   !dry_days: Number of dry days based on Priestley-Taylor model
+   dry_days=0
+   k=0
+   do i=1, 12                 !i: month
+      x = 0.0
+      y = 0.0
+      do j=1, Day_in_month(i)            !j: day form the begginig of this month
+         k = k + 1                       !k: doy
+         x = x + Prec_RunningRecord  (k) !x: precipitation                 (mm/month)
+         y = y + ev_pot_RunningRecord(k) !x: potential ecapotranspirationn (mm/month)
+      enddo
+      if (x<y) dry_days = dry_days + Day_in_month(i)
+   enddo
+   
+   !dry_days: Number of dry days based on Priestley-Taylor model
+   dry_days=0
+   do i=1, Day_in_Year
+      if (i>30) then
+         x = sum(Prec_RunningRecord   (i-30:i)) !monthly precipitation         (mm/month)
+         y = sum(ev_pot_RunningRecord (i-30:i)) !potential ecapotranspirationn (mm/month)
+      else
+         x = sum(Prec_RunningRecord   (1:i)) + sum(Prec_RunningRecord   (Day_in_Year-30+i:Day_in_Year))
+         y = sum(ev_pot_RunningRecord (1:i)) + sum(ev_pot_RunningRecord (Day_in_Year-30+i:Day_in_Year))
+      endif
+      
+      if (x<y) dry_days = dry_days + 1
+   enddo
+   
+   !Active layer depth [m]
+   do no=1, NumSoil
+      if ( tmp_soil_Today(no)<0.0 ) exit
+   enddo
+   ald = Depth * (no-1) / 1000.
+   
+   !Available water on the top 5 soil layers [mm]
+   water_available = 0.0
+   do no=1, 5
+      if ( tmp_soil_Today(no)<0.0 ) exit
+      water_available = water_available + (pool_w(no) - W_wilt*Depth)
+   enddo
+   
+!_____________ Write output-data
+write (Fn,'( 2(1x,i3), 7(1x,f7.2), 1(1x,f9.1), 3(1x,f8.3), 1(1x,f7.1), &
+2(1x,f4.1), 4(1x,f6.1), 1x, f6.0, 1x, f6.2, 1x,f5.3, 4(1x,f8.3), 2(1x,f5.3), 1x,f5.1 )') &
+   biome               , & ! 1: Biome no (classfication)
+   Day_in_Year-dry_days, & ! 2: Number of no water stress days [day/year]
+   
+   woody_carbon     , & ! 1: Carbon in Woody biomass [kg C / m2]
+   grass_carbon     , & ! 2: Carbon in Grass biomass [kg C / m2]
+   som1             , & ! 3: Carbon in litter        [kg C / m2]
+   som2             , & ! 4: Carbon in som_int       [kg C / m2]
+   som3             , & ! 5: Carbon in som_slow      [kg C / m2]
+   
+   sum(pool_w(1: 5)) / ( 5*W_fi*Depth), & ! 6: Water in soil layer 1 [fraction]
+   sum(pool_w(6:15)) / (10*W_fi*Depth), & ! 7: Water in soil layer 2 [fraction]
+   
+   pool_snow        , & ! 8: Water in snow         [mm]
+   gpp_out          , & ! 9: GPP [kg C / m2 / month]
+   npp_out          , & !10: NPP [kg C / m2 / month]
+   nep_out          , & !11: NEP [kg C / m2 / month]
+   
+   mean_woody_mass  , & !12: mean_woody_mass   [kg C / tree]
+   
+   lai_wood                             , & !13: LAI of woody PFTs [m2/m2]
+!   sum(lai_grass(:,:)) /DivedG /DivedG  , & !14: LAI of grass PFTs [m2/m2]!!!>>>>>>>>>>>>>>>TN: rm
+   sum(lai_grass(:,:)) /real(GRID%N_tot)  , & !14: LAI of grass PFTs [m2/m2] !!!<<<<<<<<<<<<<<<TN: add
+   
+   sum(flux_ro1_RunningRecord(1:Day_of_Month(doy)))+ &
+   sum(flux_ro2_RunningRecord(1:Day_of_Month(doy))), & !15: runoff        [mm/month]
+   sum(flux_ic_RunningRecord (1:Day_of_Month(doy))), & !16: interception  [mm/month]
+   sum(flux_ev_RunningRecord (1:Day_of_Month(doy))), & !17: evaporation   [mm/month]
+   sum(flux_tr_RunningRecord (1:Day_of_Month(doy))), & !18: transpiration [mm/month]
+   
+   tree_density                                   , & !19: tree_density         [N / ha]
+   canopy_cond                                    , & !20: stomatal conductance [mol H2O m-2 s-1]
+   real(fire_number)/(real(counter)/real(Day_in_Year)), & !21: Fire frequency   [n/year]
+   
+   npp_tree                                       , & !22: Woody    NPP   [kg C / m2 / month]
+   npp_C3g                                        , & !23: C3 grass NPP   [kg C / m2 / month]
+   npp_C4g                                        , & !24: C4 grass NPP   [kg C / m2 / month]
+   htr_out                                        , & !25: HetroT. Resp.  [kg C / m2 / month]
+   frac_crown_coverage                            , & !26: Crown coverage [fraction]
+   ald                                            , & !27: Active Layer Depth [m]
+   water_available                                    !28: Available water on the top 5 soil layers [mm]
+   
+END SUBROUTINE output_global

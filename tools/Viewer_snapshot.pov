@@ -13,7 +13,7 @@
 
 
         //Specizfy year of drawing
-#declare year =   100;
+#declare year =   50;
                 
 
         //Open data file
@@ -30,11 +30,11 @@
 
 // [3]OVERVIEW
 // For Fukido
-//camera      { location <362,200,400> look_at <362,-250,0> sky<0,0,1> angle 60 } 
+camera      { location <362,200,400> look_at <362,-250,0> sky<0,0,1> angle 60 } 
 //camera      { location <362,100,700> look_at <362,-322,0> sky<0,0,1> angle 60 } 
 //camera      { location <362,-322,800> look_at <362,-322,0> sky<0,0,1> angle 60 } 
 // Zoom
-camera      { location <362,-200,2> look_at <362,-250,0> sky<0,0,1> angle 60 } 
+//camera      { location <362,-200,2> look_at <362,-250,0> sky<0,0,1> angle 60 } 
                                   
 // [4]UPVIEW
 //camera      { location <0,0,1> look_at <50,60,15> sky<0,0,1> angle 60 }

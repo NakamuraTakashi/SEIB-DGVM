@@ -10,6 +10,9 @@ SUBROUTINE init_value (W_fi, tmp_air, tmp_soil, prec)
    USE vegi_status_current2
    USE grid_status_current1
    USE grid_status_current2
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   USE mod_grid
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    implicit none
    
 !Augments
@@ -20,6 +23,12 @@ SUBROUTINE init_value (W_fi, tmp_air, tmp_soil, prec)
    
 !Local variables
    integer i,j,p
+   real    x
+   
+!________ Initialize randamization function
+   !The function randf() always results in 0.00000 when it was called first time
+   !To avoide its effect, it should be called once before simulation procedure
+   x = randf()
    
 !________ Initialize Parameters
    !PFT number of C3 and C4 grass
@@ -31,7 +40,6 @@ SUBROUTINE init_value (W_fi, tmp_air, tmp_soil, prec)
 !________ Initialize vegi_status_current1
    !Variables about whole vegetation
    biome             = 12 !biome type (12->desert)
-   lai            = 0.0 !Total LAI @ update every day            (m2/m2)
    
    !Variables for each PFT
    do p=1, PFT_no
@@ -109,13 +117,24 @@ SUBROUTINE init_value (W_fi, tmp_air, tmp_soil, prec)
       gdd_20yr_ave = gdd_20yr_ave + max(0.0, tmp_air(i)-5.0)
    end do
    
-   pool_litter_trunk= 0.2 * Max_loc * Max_loc
-   pool_litter_leaf = 0.2 * Max_loc * Max_loc
-   pool_litter_root = 0.2 * Max_loc * Max_loc
-   pool_litter_ag   = 0.2 * Max_loc * Max_loc
-   pool_litter_bg   = 0.2 * Max_loc * Max_loc
-   pool_som_int     = 1.0 * Max_loc * Max_loc
-   pool_som_slow    = 1.0 * Max_loc * Max_loc
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:rm
+!   pool_litter_trunk= 0.2 * Max_loc * Max_loc
+!   pool_litter_leaf = 0.2 * Max_loc * Max_loc
+!   pool_litter_root = 0.2 * Max_loc * Max_loc
+!   pool_litter_ag   = 0.2 * Max_loc * Max_loc
+!   pool_litter_bg   = 0.2 * Max_loc * Max_loc
+!   pool_som_int     = 1.0 * Max_loc * Max_loc
+!   pool_som_slow    = 1.0 * Max_loc * Max_loc
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:rm
+!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
+   pool_litter_trunk= 0.2 * real(GRID%Area)
+   pool_litter_leaf = 0.2 * real(GRID%Area)
+   pool_litter_root = 0.2 * real(GRID%Area)
+   pool_litter_ag   = 0.2 * real(GRID%Area)
+   pool_litter_bg   = 0.2 * real(GRID%Area)
+   pool_som_int     = 1.0 * real(GRID%Area)
+   pool_som_slow    = 1.0 * real(GRID%Area)
+!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    
    pool_fuel_standT = pool_litter_leaf
    pool_fuel_standG = pool_litter_ag
@@ -135,11 +154,17 @@ SUBROUTINE init_value (W_fi, tmp_air, tmp_soil, prec)
    flux_c_gro_RR   (:) = 0.0
    flux_c_htr_RR   (:) = 0.0
    flux_c_fir_RR   (:) = 0.0
+   flux_c_lit_RR   (:) = 0.0
+   flux_c_som_RR   (:) = 0.0
    
-   flux_ro_RunningRecord(:) = 0.0
-   flux_ic_RunningRecord(:) = 0.0
-   flux_ev_RunningRecord(:) = 0.0
-   flux_tr_RunningRecord(:) = 0.0
+   flux_ro1_RunningRecord (:) = 0.0
+   flux_ro2_RunningRecord (:) = 0.0
+   flux_ic_RunningRecord  (:) = 0.0
+   flux_ev_RunningRecord  (:) = 0.0
+   flux_tr_RunningRecord  (:) = 0.0
+   flux_sl_RunningRecord  (:) = 0.0
+   flux_tw_RunningRecord  (:) = 0.0
+   flux_sn_RunningRecord  (:) = 0.0
    
    do i = 1, Day_in_Year
    tmp_air_RunningRecord (i) = tmp_air  (i)

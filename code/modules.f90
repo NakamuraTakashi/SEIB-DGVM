@@ -6,7 +6,7 @@ MODULE data_structure
 !_____________ Patameters that must be defined at the beginning, Part 1
 integer,parameter::PFT_no  = 4   !Number of plant functional types!!!>>>>>>>>>>>>TN:changed 16 -> 4
 
-integer,parameter::Max_no  = 10000  !maximum individual number in a plot
+integer,parameter::Max_no  = 16000  !maximum individual number in a plot
 
 integer,parameter::Max_hgt = 600  !Maximum number of vertical layer (in STEP).
 ! This parameter is referred when calculating sunlight distribution in virtual forest.
@@ -20,7 +20,7 @@ integer,parameter::Max_hgt = 600  !Maximum number of vertical layer (in STEP).
 
 !integer,parameter::DivedG = 30 !Resolution of Grass cell.   !!!>>>>>>>>>>>>TN:rm not used for mangrove
 
-integer,parameter::NumSoil = 30 !Number of Soil layer
+integer,parameter::NumSoil = 20 !Number of Soil layer
 
 !Number of light intensity class for computing photosynthesis rate and transpiration rate (Only used for the original way for phtosynthesis)
 integer,parameter::MaxParClass = 10
@@ -31,10 +31,10 @@ integer,parameter::MaxLightClass = 30
 integer,parameter::Logging = 0 !Make log file or not; 0->off, 1->on
 
 !_____________ Fixed patameters (no needs to modify)
-real,parameter   ::PI          = 3.141592 !pai
+real,parameter   ::PI          = acos(-1.0d0) !circular constant pi
 real,parameter   ::DtoR        = PI/180.0 !angle conversion, from degree to radian [dTr]
 real,parameter   ::RtoD        = 180.0/PI !angle conversion, from radian to degree [rTd]
-real,parameter   ::ZAT         = 273.15   !zero degree centigrade in absolute temperature
+real,parameter   ::ABS_ZERO    = 273.15   !zero degree centigrade in absolute temperature
 real,parameter   ::GasConst    = 8.31451  !gas constant (J K-1 mol-1)
 integer,parameter::Day_in_Year = 365      !number of day containing a year (day)
 
@@ -72,13 +72,17 @@ Month = (/&
 11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,    &
 12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12 /)
 
-!_____________ Patameters that whill be intialized with paramete.txt
+!_____________ Parameters that will be initialized using parameter.txt
 !Control
 integer,save:: Simulation_year   !simulation year (yr)
 
 logical,save:: Flag_spinup_read         !flag: restart from spinup files or not
 logical,save:: Flag_spinup_write        !flag: make spinup files or not
 logical,save:: Flag_output_write        !flag: make output files or not
+logical,save:: Flag_land_physics        !flag: True  -> NOAH-LSM treats soil physics 
+                                        !      False -> SEIB-DGVM treats soil physics 
+logical,save:: Flag_photosynthesis_type !flag: True  -> Faquhar's equation (UNDER CONSTRUCTION!)
+                                        !      False -> Monsi & Saeki's equation
 logical,save:: Flag_randomization       !flag: True  -> employ different random seed for each run
 
 !integer,save          ::Max_loc         !side lenght of forest stand (m)  !!!>>>>>>>>>>>>TN:rm
@@ -91,8 +95,8 @@ integer,dimension (25)::File_no         !device number for I/O
 character*128::Fn_climate  !input  file name for climate data
 character*128::Fn_CO2      !input  file name for CO2 data (annualy)
 character*128::Fn_location !input  file name for soil data
-character*128::Fn_spnin    !input  file name for spinup data
-character*128::Fn_spnout   !output file name for spinup data
+character*128::Fn_spnin    !input  file name for spin-up data
+character*128::Fn_spnout   !output file name for spin-up data
 
 !PFT type
 integer,dimension(PFT_no)::Life_type     !0  : Other tree species
@@ -162,7 +166,7 @@ real   ,dimension(PFT_no)::Msal2     !Mortality; a parameter of salinity effect
 real   ,dimension(PFT_no)::TC_min         !Minimum coldest month temperature for persisting
 
 real   ,dimension(PFT_no)::P_establish !Establishment probability in safe_site (year-1 m-2)
-real   ,dimension(PFT_no)::TC_max   !Maximum coldest month temperature for establishment (cecius)
+real   ,dimension(PFT_no)::TC_max   !Maximum coldest month temperature for establishment (Celcius)
 real   ,dimension(PFT_no)::GDD_max  !Maximum degree-day sum (5 Celcius base) for establishment
 real   ,dimension(PFT_no)::GDD_min  !Minimum degree-day sum (5 Celcius base) for establishment
 real   ,dimension(PFT_no)::PAR_min  !Minimum midday PAR (micro mol photon m-2 s-1) to establish
@@ -176,10 +180,10 @@ integer                  ::Est_scenario !Scenario for establishment (0 or 1 or 2
    !3 -> in proportion of existing biomass after specific year
    !4 -> in proportion of existing biomass after specific year,
    !     while little portion of establishment was randomly selected
-   !     from all potentialy establishable PFTs
+   !     from all potentially establishable PFTs
    
 integer                  ::Est_year_change !for Scenario 3 and 4:
-                                           !lenght of year until establishment pattern will change
+                                           !length of year until establishment pattern will change
 logical,dimension(PFT_no)::Est_pft_OnOff   !for Scenario 1: establishment switch
 real                     ::Est_frac_random !for Scenario 4: fraction of random establishment
 
@@ -204,9 +208,11 @@ integer,allocatable :: seed(:)
 
 !***********************  set NameList  *************************
     namelist /Control/        &
-        Simulation_year, Flag_spinup_read, Flag_spinup_write, Flag_output_write, &
-        Flag_randomization, &
-        Max_loc, Depth, STEP, &
+        Simulation_year, &
+        Flag_spinup_read, Flag_spinup_write, Flag_output_write, &
+        Flag_land_physics, Flag_photosynthesis_type, Flag_randomization, &
+!        Max_loc, Depth, STEP, & !!!>>>>>>>>>>>>TN:rm
+        Depth, STEP, &           !!!<<<<<<<<<<<<TN:add
         C_in_drymass, File_no, &
         Fn_climate, Fn_CO2, Fn_location, Fn_spnin, Fn_spnout
     
@@ -243,82 +249,129 @@ CONTAINS
 
 !Maximum tree_height for a given diameter (step) 
 INTEGER FUNCTION h(dbh, pft)
-   real    dbh !Diamter at Breath Height (m)
-   integer pft !PFT
-   real    hgt !tree height (m)
-   
-   !FORSKA way of modeling
-   !h = int(   (HGT_max(pft) * (1 - exp( (-HGT_s(pft)*dbh)/HGT_max(pft) )))   /STEP)
-   
-   hgt = 1.0 / ( 1.0/(HGT_s(pft)*dbh) + 1.0/HGT_max(pft) )
-   h = int( (hgt-1.3) / STEP )
-   h = max(2, h)
+	real    dbh !Diamter at Breath Height (m)
+	integer pft !PFT
+	real    hgt !tree height (m)
+	
+	!FORSKA way of modeling
+	!h = int(   (HGT_max(pft) * (1 - exp( (-HGT_s(pft)*dbh)/HGT_max(pft) )))   /STEP)
+	
+	hgt = 1.0 / ( 1.0/(HGT_s(pft)*dbh) + 1.0/HGT_max(pft) )
+	h = int( (hgt-1.3) / STEP )
+	h = max(2, h)
 END FUNCTION h
 
 !Stem weight (g DM)
 REAL FUNCTION stem_weight(dbh,height,pft)
-   real    dbh     !diameter at breast height (m)
-   integer height  !height of tree above 1.3 m (STEP)
-   integer pft     !pft number
-   real    x       !for temporal usage
-   
-   !default
-   x = ALM3(pft) * (1.3+height*STEP) * ((dbh**2) * PI / 4.0)
-   
-   if ( Life_type(pft)==1 ) then
-   !for tropical evergreen trees (by Huth & Ditzer 2000)
-!      x = ALM3(pft) * (1.3+height*STEP) * ((dbh**2)*PI/4.0) * (1.0/0.7) * (0.5941-0.0108*log(x))
-!      x = ALM3(pft) * (1.3+height*STEP) * ((dbh**2)*PI/4.0) * (1.0/0.7) * (0.5941-0.0108*log(x))
-!      x = ALM3(pft) * (1.3+height*STEP) * ((dbh**2)*PI/4.0) * (1.0/0.7) * (0.5941-0.0108*log(x))
-!      x = ALM3(pft) * (1.3+height*STEP) * ((dbh**2)*PI/4.0) * (1.0/0.7) * (0.5941-0.0108*log(x))
-      
-      !dbh‚¾‚¯‚ÌŠÖ”‚Æ‚µ‚ÄŠ²d‚ªŒˆ‚Ü‚é‚Æ‚µ‚½
-      x = ALM3(pft)* (1.3+h(dbh,pft)*STEP)* ((dbh**2)*PI/4.0)* (1.0/0.7)* 0.5
-      x = ALM3(pft)* (1.3+h(dbh,pft)*STEP)* ((dbh**2)*PI/4.0)* (1.0/0.7)* (0.5941-0.0108*log(x))
-      x = ALM3(pft)* (1.3+h(dbh,pft)*STEP)* ((dbh**2)*PI/4.0)* (1.0/0.7)* (0.5941-0.0108*log(x))
-      x = ALM3(pft)* (1.3+h(dbh,pft)*STEP)* ((dbh**2)*PI/4.0)* (1.0/0.7)* (0.5941-0.0108*log(x))
-      x = ALM3(pft)* (1.3+h(dbh,pft)*STEP)* ((dbh**2)*PI/4.0)* (1.0/0.7)* (0.5941-0.0108*log(x))
-      
-   elseif ( Life_type(pft)==5 ) then
-   !For Tropical Broadleaf trees in Africa
-      ![from aDGVM]
-      !x = 27523 * 1000.0 *  (dbh**2.55) 
-      
-      !from Type II model of Chave et al. (2005)
-      x = 207.0 * ((ALM3(pft)/1000000.0)**1.036) * ((dbh*100)**2.179) 
-      
-      !convert AGB to tunc biomass, which includes coarse root, Deans at al. (1996)
-      x = x * 1.33
-      
-   elseif ( Life_type(pft)==2 .or. Life_type(pft)==6 ) then
-   !for boreal deciduous needle leaf trees
-      x = ALM3(pft) * (1.3+height*STEP) * ((dbh**2) * PI / 6.0)
-      
-      !Sato et al. (2010) for larch
-      !x = 0.19*( (100*dbh)**1.81 ) + 0.0428*( (100*dbh)**1.79 ) + 0.171*( (100*dbh)**1.67 )
-      !x = 1000 * x
-      !y = -11300 + 4670000 * 3.14*((0.5*dbh)**2)
-      !y = y * 1.5 !(convert: AGB-> tunc biomass)
-      !x = max(x,y)
-   end if
-   stem_weight = x
-   
+	real    dbh     !diameter at breast height (m)
+	integer height  !height of tree above 1.3 m (STEP)
+	integer pft     !pft number
+	real    x       !for temporal usage
+	
+	!default
+	x = ALM3(pft) * (1.3+height*STEP) * ((dbh**2) * PI / 4.0)
+	
+	if ( Life_type(pft)==1 ) then
+	!for tropical evergreen trees (by Huth & Ditzer 2000)
+!		x = ALM3(pft) * (1.3+height*STEP) * ((dbh**2)*PI/4.0) * (1.0/0.7) * (0.5941-0.0108*log(x))
+!		x = ALM3(pft) * (1.3+height*STEP) * ((dbh**2)*PI/4.0) * (1.0/0.7) * (0.5941-0.0108*log(x))
+!		x = ALM3(pft) * (1.3+height*STEP) * ((dbh**2)*PI/4.0) * (1.0/0.7) * (0.5941-0.0108*log(x))
+!		x = ALM3(pft) * (1.3+height*STEP) * ((dbh**2)*PI/4.0) * (1.0/0.7) * (0.5941-0.0108*log(x))
+		
+		!dbh‚¾‚¯‚ÌŠÖ”‚Æ‚µ‚ÄŠ²d‚ªŒˆ‚Ü‚é‚Æ‚µ‚½
+		x = ALM3(pft)* (1.3+h(dbh,pft)*STEP)* ((dbh**2)*PI/4.0)* (1.0/0.7)* 0.5
+		x = ALM3(pft)* (1.3+h(dbh,pft)*STEP)* ((dbh**2)*PI/4.0)* (1.0/0.7)* (0.5941-0.0108*log(x))
+		x = ALM3(pft)* (1.3+h(dbh,pft)*STEP)* ((dbh**2)*PI/4.0)* (1.0/0.7)* (0.5941-0.0108*log(x))
+		x = ALM3(pft)* (1.3+h(dbh,pft)*STEP)* ((dbh**2)*PI/4.0)* (1.0/0.7)* (0.5941-0.0108*log(x))
+		x = ALM3(pft)* (1.3+h(dbh,pft)*STEP)* ((dbh**2)*PI/4.0)* (1.0/0.7)* (0.5941-0.0108*log(x))
+		
+	elseif ( Life_type(pft)==5 ) then
+	!For Tropical Broadleaf trees in Africa
+		![from aDGVM]
+		!x = 27523 * 1000.0 *  (dbh**2.55) 
+		
+		!from Type II model of Chave et al. (2005)
+		x = 207.0 * ((ALM3(pft)/1000000.0)**1.036) * ((dbh*100)**2.179) 
+		
+		!convert AGB to tunc biomass, which includes coarse root, Deans at al. (1996)
+		x = x * 1.33
+		
+	elseif ( Life_type(pft)==2 .or. Life_type(pft)==6 ) then
+	!for boreal deciduous needle leaf trees
+		x = ALM3(pft) * (1.3+height*STEP) * ((dbh**2) * PI / 6.0)
+		
+		!Sato et al. (2010) for larch
+		!x = 0.19*( (100*dbh)**1.81 ) + 0.0428*( (100*dbh)**1.79 ) + 0.171*( (100*dbh)**1.67 )
+		!x = 1000 * x
+		!y = -11300 + 4670000 * 3.14*((0.5*dbh)**2)
+		!y = y * 1.5 !(convert: AGB-> tunc biomass)
+		!x = max(x,y)
+	end if
+	stem_weight = x
+	
 END FUNCTION
 
 !Random value generator (output:1.0-0.0)
 REAL FUNCTION randf()
-   !integer I_seed
-   !I_seed = I_seed*48828125
-   !if(I_seed.le.0) then
-   !   I_seed = (I_seed+2147483647)+1
-   !else
-   !   I_seed = I_seed
-   !end if
-   !randf = float(I_seed)/2147483647
-   call random_number(randf)
-   return
+	!integer I_seed
+	!I_seed = I_seed*48828125
+	!if(I_seed.le.0) then
+	!   I_seed = (I_seed+2147483647)+1
+	!else
+	!   I_seed = I_seed
+	!end if
+	!randf = float(I_seed)/2147483647
+	call random_number(randf)
+	return
 END FUNCTION randf
 
+! Functions for meteorological calculations
+	! Saturated vapour pressure (hPa), Tetens' formula
+	real function Sat_vp (tmp_air)
+		real tmp_air
+		if(tmp_air > 0.0) then   !@water surface
+			Sat_vp = 6.1078*(10.0**((7.5*tmp_air)/(237.3+tmp_air)))
+		else                    !@ice surface
+			Sat_vp = 6.1078*(10.0**((9.5*tmp_air)/(265.3+tmp_air)))
+		endif
+	end function Sat_vp
+	
+	! Slope of saturated vapour pressure as a function of temperature (hPa K-1)
+	real function Delta_sat_vp (tmp_air)
+		real tmp_air, a1, a2
+		if(tmp_air > 0.0) then  !  at  water  surface
+			a1 = 6.1078 * (2500.0 - 2.4 * tmp_air)
+			a2 = ( 10.0**((7.5 * tmp_air) / (237.3 + tmp_air)) )
+		else                 !  at  ice  surface
+			a1 = 6.1078 * 2834.0
+			a2 = ( 10.0**((9.5 * tmp_air) / (265.3 + tmp_air)) )
+		endif
+		Delta_sat_vp = ( a1 / (0.4615 * (ABS_ZERO + tmp_air) * (ABS_ZERO + tmp_air)) ) * a2
+	end function Delta_sat_vp
+	
+	! Latent heat of water vaporization at 1atm (J/kg H2O)
+	real function Latent_heat (tmp_air)
+		real tmp_air
+		if (tmp_air > 0.0) then
+			Latent_heat = 2.50025 * (10**6) - 2365 * tmp_air		! Fritschen and Gay (1979)
+		else
+			Latent_heat = 2.8341 * (10**6) - 149 * tmp_air		! Fleagle and Businger (1980)
+		endif
+	end function Latent_heat
+	
+	! Air pressure corrected for altitude and temperature  (hPa)
+	real function Pressure_air (tmp_air)
+		real tmp_air
+		Pressure_air = 1013.25 * exp ( -0.2838472*ALT /(8.3144*(tmp_air+ABS_ZERO)) )
+	end function Pressure_air
+	
+	! Vapor pressure (hPa)
+	real function Pressure_vapor (tmp_air, humid)
+		real tmp_air, humid
+		Pressure_vapor = Pressure_air(tmp_air) * humid / ( 0.622 + 0.378 * humid )
+		Pressure_vapor = min(Pressure_vapor, Sat_vp(tmp_air))
+	end function Pressure_vapor
+	
 END MODULE
 
 
@@ -328,89 +381,89 @@ END MODULE
 !**************************************************************************************************
 !Simulation loop counter
 MODULE time_counter
-   integer counter       !counter number of present day
-   integer counter_begin !counter number for start of the simulation
-   integer counter_end   !counter number for termination of the simulation
-   integer doy           !day of the year (1-Day_in_Year)
-   integer year          !loop counter for year (1-Simulation_year)
-   integer Spinup_year   !Year length of spin up that has been conducted.
+	integer counter       !counter number of present day
+	integer counter_begin !counter number for start of the simulation
+	integer counter_end   !counter number for termination of the simulation
+	integer doy           !day of the year (1-Day_in_Year)
+	integer year          !loop counter for year (1-Simulation_year)
+	integer Spinup_year   !Year length of spin up that has been conducted.
                          !This value is used when simulation starts from spin up file.
 END MODULE time_counter
 
 !Vegetation status (current)
 MODULE vegi_status_current1
-   USE data_structure
-   
-   !Variables for whole vegetation
-   integer biome          !biome type (Definition ->subroutine biome_type)
-   real    lai            !Total LAI @ update everyday             (m2/m2)
-   
-   !Variables for each PFT
-   logical,dimension(PFT_no)::phenology      !Phenological status (T:foliation, F:dormance)
-   logical,dimension(PFT_no)::pft_exist      !flag: PFT exist or not
-   integer,dimension(PFT_no)::dfl_leaf_onset !day from last leaf onset
-   integer,dimension(PFT_no)::dfl_leaf_shed  !counter number of last leaf shedding
-   real   ,dimension(PFT_no)::stat_water     !state of water satisfactory (0.0-1.0)
-   
-   !Variables for for each individual tree
-   logical,dimension(Max_no)::tree_exist     !tree exist flag
-   integer,dimension(Max_no)::pft            !Plant Functional Type
-   integer,dimension(Max_no)::age            !tree age (year)
-   integer,dimension(Max_no)::height         !tree height from 1.3m above ground (STEP)
-   integer,dimension(Max_no)::bole           !bole length from 1.3m above ground (STEP)
-   integer,dimension(Max_no)::height_limit   !maximum tree height that proximate trees permit(step)
-   integer,dimension(Max_no)::flag_suppress
-   
-   real   ,dimension(Max_no)::dbh_heartwood  !heartwood diameter at 1.3m (m)
-   real   ,dimension(Max_no)::dbh_sapwood    !sapwood   diameter at 1.3m (m)
-   real   ,dimension(Max_no)::crown_diameter !crown diameter      (m)
-   real   ,dimension(Max_no)::crown_area     !crown area          (m2)
-   real   ,dimension(Max_no)::bole_x         !x_location of bole  (m)
-   real   ,dimension(Max_no)::bole_y         !y_location of bole  (m)
-   real   ,dimension(Max_no)::crown_x        !x_location of crown (m)
-   real   ,dimension(Max_no)::crown_y        !y_location of crown (m)
-   real   ,dimension(Max_no)::radius_limit   !maximum canopy radius that proximate trees permit (m)
-   real   ,dimension(Max_no)::la             !leaf area           (m2)
-   real   ,dimension(Max_no)::mass_leaf      !biomass of foliage  (gDM/tree)
-   real   ,dimension(Max_no)::mass_trunk     !biomass of trunk    (gDM/tree)
-   real   ,dimension(Max_no)::mass_root      !biomass of fine root(gDM/tree)
-   real   ,dimension(Max_no)::mass_stock     !biomass for stock   (gDM/tree)
-   real   ,dimension(Max_no)::mass_available !biomass available   (gDM/tree)
-   real   ,dimension(Max_no)::mort_regu1               !sum of NPP within the previous year (gDM/tree)
-   real   ,dimension(Max_no)::mort_regu2               !average leaf area of last year (m2)
-   real   ,dimension(Max_no)::mort_regu4               !stem diameter increament in last year (m year-1)
-   real   ,dimension(Max_no)   ::npp_crowntop    !annual NPP at the top CrownDisk (gDM/year/step)
-   real   ,dimension(Max_no,10)::npp_crownbottom !annual NPP of btm CrownDisks    (gDM/year/step)
-   
-   !Variables for each floor cell
+	USE data_structure
+	
+	!Variables for whole vegetation
+	integer biome          !biome type (Definition ->subroutine biome_type)
+!	real    lai            !Total LAI @ update everyday             (m2/m2)
+	
+	!Variables for each PFT
+	logical,dimension(PFT_no)::pft_exist      !flag: PFT exist or not
+	logical,dimension(PFT_no)::phenology      !Phenological status (T:foliation, F:dormance)
+	integer,dimension(PFT_no)::dfl_leaf_onset !day from last leaf onset
+	integer,dimension(PFT_no)::dfl_leaf_shed  !counter number of last leaf shedding
+	real   ,dimension(PFT_no)::stat_water     !state of water satisfactory (0.0-1.0)
+	
+	!Variables for for each individual tree
+	logical,dimension(Max_no)::tree_exist     !tree exist flag
+	integer,dimension(Max_no)::pft            !Plant Functional Type
+	integer,dimension(Max_no)::age            !tree age (year)
+	integer,dimension(Max_no)::height         !tree height from 1.3m above ground (STEP)
+	integer,dimension(Max_no)::bole           !bole length from 1.3m above ground (STEP)
+	integer,dimension(Max_no)::height_limit   !maximum tree height that proximate trees permit(step)
+	integer,dimension(Max_no)::flag_suppress
+	
+	real   ,dimension(Max_no)::dbh_heartwood  !heartwood diameter at 1.3m (m)
+	real   ,dimension(Max_no)::dbh_sapwood    !sapwood   diameter at 1.3m (m)
+	real   ,dimension(Max_no)::crown_diameter !crown diameter      (m)
+	real   ,dimension(Max_no)::crown_area     !crown area          (m2)
+	real   ,dimension(Max_no)::bole_x         !x_location of bole  (m)
+	real   ,dimension(Max_no)::bole_y         !y_location of bole  (m)
+	real   ,dimension(Max_no)::crown_x        !x_location of crown (m)
+	real   ,dimension(Max_no)::crown_y        !y_location of crown (m)
+	real   ,dimension(Max_no)::radius_limit   !maximum canopy radius that proximate trees permit (m)
+	real   ,dimension(Max_no)::la             !leaf area           (m2)
+	real   ,dimension(Max_no)::mass_leaf      !biomass of foliage  (gDM/tree)
+	real   ,dimension(Max_no)::mass_trunk     !biomass of trunk    (gDM/tree)
+	real   ,dimension(Max_no)::mass_root      !biomass of fine root(gDM/tree)
+	real   ,dimension(Max_no)::mass_stock     !biomass for stock   (gDM/tree)
+	real   ,dimension(Max_no)::mass_available !biomass available   (gDM/tree)
+	real   ,dimension(Max_no)::mort_regu1               !sum of NPP within the previous year (gDM/tree)
+	real   ,dimension(Max_no)::mort_regu2               !average leaf area of last year (m2)
+	real   ,dimension(Max_no)::mort_regu4               !stem diameter increament in last year (m year-1)
+	real   ,dimension(Max_no)   ::npp_crowntop    !annual NPP at the top CrownDisk (gDM/year/step)
+	real   ,dimension(Max_no,10)::npp_crownbottom !annual NPP of btm CrownDisks    (gDM/year/step)
+	
+    !Variables for each floor cell
 !!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:rm
-!   real,dimension(DivedG,DivedG):: gmass_leaf      !c3/c4 grass foliage   biomass (gDM/cell)
-!   real,dimension(DivedG,DivedG):: gmass_root      !c3/c4 grass root      biomass (gDM/cell)
-!   real,dimension(DivedG,DivedG):: gmass_available !c3/c4 grass available biomass (gDM/cell)
-!   real,dimension(DivedG,DivedG):: gmass_stock     !c3/c4 grass stock     biomass (gDM/cell)
-!   real,dimension(DivedG,DivedG):: lai_grass       !c3/c4 leaf area index of grass (m2/m2)
-!   
-!   real,dimension(20,DivedG,DivedG)::lai_opt_grass_RunningRecord
+!	real,dimension(DivedG,DivedG):: gmass_leaf      !c3/c4 grass foliage   biomass (gDM/cell)
+!	real,dimension(DivedG,DivedG):: gmass_root      !c3/c4 grass root      biomass (gDM/cell)
+!	real,dimension(DivedG,DivedG):: gmass_available !c3/c4 grass available biomass (gDM/cell)
+!	real,dimension(DivedG,DivedG):: gmass_stock     !c3/c4 grass stock     biomass (gDM/cell)
+!	real,dimension(DivedG,DivedG):: lai_grass       !c3/c4 leaf area index of grass (m2/m2)
+!	
+!	real,dimension(20,DivedG,DivedG)::lai_opt_grass_RunningRecord
 !!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:rm
 !!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
-   real,allocatable,dimension(:,:):: gmass_leaf      !c3/c4 grass foliage   biomass (gDM/cell)
-   real,allocatable,dimension(:,:):: gmass_root      !c3/c4 grass root      biomass (gDM/cell)
-   real,allocatable,dimension(:,:):: gmass_available !c3/c4 grass available biomass (gDM/cell)
-   real,allocatable,dimension(:,:):: gmass_stock     !c3/c4 grass stock     biomass (gDM/cell)
-   real,allocatable,dimension(:,:):: lai_grass       !c3/c4 leaf area index of grass (m2/m2)
-   
-   real,allocatable,dimension(:,:,:)::lai_opt_grass_RunningRecord
+	real,allocatable,dimension(:,:):: gmass_leaf      !c3/c4 grass foliage   biomass (gDM/cell)
+	real,allocatable,dimension(:,:):: gmass_root      !c3/c4 grass root      biomass (gDM/cell)
+	real,allocatable,dimension(:,:):: gmass_available !c3/c4 grass available biomass (gDM/cell)
+	real,allocatable,dimension(:,:):: gmass_stock     !c3/c4 grass stock     biomass (gDM/cell)
+	real,allocatable,dimension(:,:):: lai_grass       !c3/c4 leaf area index of grass (m2/m2)
+	
+	real,allocatable,dimension(:,:,:)::lai_opt_grass_RunningRecord
 !!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
-   
-   !Running Records of plant properties
-   logical,dimension(Day_in_Year,PFT_no)::phenology_RunningRecord  !RR of Phenology Flag
-   real   ,dimension(Day_in_Year,PFT_no)::npp_RunningRecord        !RR of NPP (g DM/ stand/ day)
-   real   ,dimension(Day_in_Year,PFT_no)::gpp_RunningRecord        !RR of GPP (g DM/ stand/ day)
-   real   ,dimension(Day_in_Year,PFT_no)::stat_water_RunningRecord !RR of Stat water
-   real   ,dimension(Day_in_Year,PFT_no)::lai_RunningRecord        !RR of LAI (m2/m2)
-   
-   real,dimension(20,PFT_no)::mass_sum_RunningRecord !20yrs RR of biomass for each PFT (gDM/m2)
-   
+    
+	!Running Records of plant properties
+	logical,dimension(Day_in_Year,PFT_no)::phenology_RunningRecord  !RR of Phenology Flag
+	real   ,dimension(Day_in_Year,PFT_no)::npp_RunningRecord        !RR of NPP (g DM/ stand/ day)
+	real   ,dimension(Day_in_Year,PFT_no)::gpp_RunningRecord        !RR of GPP (g DM/ stand/ day)
+	real   ,dimension(Day_in_Year,PFT_no)::stat_water_RunningRecord !RR of Stat water
+	real   ,dimension(Day_in_Year,PFT_no)::lai_RunningRecord        !RR of LAI (m2/m2)
+	
+	real,dimension(20,PFT_no)::mass_sum_RunningRecord !20yrs RR of biomass for each PFT (gDM/m2)
+	
 END MODULE vegi_status_current1
 
 
@@ -436,9 +489,9 @@ real,dimension(Max_no)::psat     !light-saturated photosynthesis rate (micro mol
 real,dimension(Max_no)::npp_crownbottom_daily
                                  !daily stat_leaf on the bottom of CrownDisk
 
-real,dimension(10)::lue_grass    !light use efficiency for each par intensity class (mol CO2 mol photon-1)
-real,dimension(10)::co2cmp_grass !CO2 compensation point for each par intensity class (ppmv)
-real,dimension(10)::psat_grass   !light-saturated photosynthesis rate for each par intensity class
+real,dimension(MaxParClass)::lue_grass    !light use efficiency for each PAR intensity class (mol CO2 mol photon-1)
+real,dimension(MaxParClass)::co2cmp_grass !CO2 compensation point for each par intensity class (ppmv)
+real,dimension(MaxParClass)::psat_grass   !light-saturated photosynthesis rate for each par intensity class
                                  ! (micro mol CO2 m-2 s-1)   
    
    !Carbon flux
@@ -463,6 +516,9 @@ real,dimension(10)::psat_grass   !light-saturated photosynthesis rate for each p
 !   logical,dimension(Dived,Dived)::patch_vacant !safe site for establishment of woody PFTs !!!>>>>>>>>>>>>TN:rm
    logical,allocatable,dimension(:,:)::patch_vacant !safe site for establishment of woody PFTs !!!<<<<<<<<<<<<TN:add
    
+! LAI of each PFT for each layer in the forest
+	real,dimension(PFT_no,Max_hgt)::lai_cum  ! Cumulative LAI for each PFT for each forest layer (m2/m2)
+
 END MODULE vegi_status_current2
 
 
@@ -509,12 +565,18 @@ MODULE grid_status_current1
    real,dimension(Day_in_Year):: flux_c_gro_RR    !carbon emission due to growth        respiration (gDM/day/stand)
    real,dimension(Day_in_Year):: flux_c_htr_RR    !carbon emission due to heterotrophic respiration (gDM/day/stand)
    real,dimension(Day_in_Year):: flux_c_fir_RR    !carbon emission due to fire incident             (gDM/day/stand)
+   real,dimension(Day_in_Year):: flux_c_lit_RR    !biomass to litter flux (gDM/day/stand)
+   real,dimension(Day_in_Year):: flux_c_som_RR    !litter to SOM flux     (gDM/day/stand)
    
-   !Running Records of Water Flux
-   real,dimension(Day_in_Year):: flux_ro_RunningRecord !1yr RR runoff water      (mm)
-   real,dimension(Day_in_Year):: flux_ic_RunningRecord !1yr RR interception water(mm)
-   real,dimension(Day_in_Year):: flux_ev_RunningRecord !1yr RR evaporated water  (mm)
-   real,dimension(Day_in_Year):: flux_tr_RunningRecord !1yr RR tranpirated water (mm)
+   !Running Records of Water Flux (mm/day)
+   real,dimension(Day_in_Year):: flux_ro1_RunningRecord !Surface runoff
+   real,dimension(Day_in_Year):: flux_ro2_RunningRecord !Bottom drain
+   real,dimension(Day_in_Year):: flux_ic_RunningRecord  !Canopy interception
+   real,dimension(Day_in_Year):: flux_ev_RunningRecord  !Direct soil evapo.
+   real,dimension(Day_in_Year):: flux_tr_RunningRecord  !Tranpiration
+   real,dimension(Day_in_Year):: flux_sl_RunningRecord  !Sublimation from snow
+   real,dimension(Day_in_Year):: flux_tw_RunningRecord  !Snow thaw
+   real,dimension(Day_in_Year):: flux_sn_RunningRecord  !Snowing
    
    !Running Records of Environmental Factors
    real,dimension(Day_in_Year        )::tmp_air_RunningRecord   !1yr RR (Celcius)
@@ -544,17 +606,17 @@ MODULE grid_status_current2
    
    !Physical status of radiation
    real sl_hgt           (Day_in_Year)  !solar hight at midday (degree)
+   real sl_dec           (Day_in_Year)  !solar  declination    (degree)
    real dlen             (Day_in_Year)  !day length (hour)
    real rad_stratosphere (Day_in_Year)  ! shortwave radiation at the atmosphere-top (W/m2) 
    
-   real rad         !shortwave radiation at mid-day over canopy (W/m2)
    real par         !photosynthetically active radiation of mid-day (micro mol photon m-2 s-1)
    real par_direct  !direct PAR on canopy top of mid-day (micro mol photon m-2 s-1)
    real par_diffuse !difussed PAR on canopy top of mid-day (micro mol photon m-2 s-1)
    real albedo_mean !albedo, averaged over the virtual forest
    real albedo_soil !soil surface albedo
    real albedo_leaf !leaf albedo
-   real radnet_long !longwave net radiation, upward (W m-2)
+   real radlong_up  !longwave net radiation, upward (W m-2)
    real radnet_veg  !canopy net radiation (W m-2, day-time mean, short+long waves)
    real radnet_soil !soil surface net radiation (W m-2, whole day mean, short+long waves)
    real ir_tree     !radiation-interruption-coefficient by tree corwn (0.0~1.0) lower=more absorp.
@@ -565,21 +627,29 @@ MODULE grid_status_current2
    real gdd5      !5 Celcius base
    
    !Relative PAR intensity (0.0-1.0)
-   real,dimension(Max_no,Max_hgt)::par_direct_rel  !direct PAR for each CrownDisk
-   real,dimension(Max_hgt)       ::par_diffuse_rel !diffused PAR intensity for each forest layer
+	real,dimension(Max_no,Max_hgt)::par_direct_rel  !direct PAR for each CrownDisk
+	real,dimension(Max_hgt)       ::par_diffuse_rel !diffused PAR intensity for each forest layer
 !!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:rm
-!   real,dimension(Dived ,Dived ) ::par_floor_rel   !total PAR on each estaclishment cell of forest floor
-!   real,dimension(DivedG,DivedG) ::par_grass_rel   !total PAR on each grass         cell of forest floor
-!   
+!	real,dimension(Dived ,Dived ) ::par_floor_rel   !total PAR on each establishment cell of forest floor
+!	real,dimension(DivedG,DivedG) ::par_grass_rel   !total PAR on each grass cell of forest floor
+!	real,dimension(Dived ,Dived ) ::par_floor_dir_rel   !total direct PAR on each establishment cell of forest floor
+!	real,dimension(Dived ,Dived ) ::par_floor_dif_rel   !total diffused PAR on each establishment cell of forest floor
+!	real,dimension(DivedG,DivedG) ::par_grass_dir_rel   !total direct PAR on each grass cell of forest floor
+!	real,dimension(DivedG,DivedG) ::par_grass_dif_rel   !total diffused PAR on each grass cell of forest floor
+!    
 !   !1yr sum of PAR intensity for establishment cells
 !   real,dimension(Dived, Dived)::sum_par_floor
 !!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:rm
 !!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
-   real,allocatable,dimension(:,:) ::par_floor_rel   !total PAR on each estaclishment cell of forest floor
-   real,allocatable,dimension(:,:) ::par_grass_rel   !total PAR on each grass         cell of forest floor
+	real,allocatable,dimension(:,:) ::par_floor_rel   !total PAR on each establishment cell of forest floor
+	real,allocatable,dimension(:,:) ::par_grass_rel   !total PAR on each grass cell of forest floor
+	real,allocatable,dimension(:,:) ::par_floor_dir_rel   !total direct PAR on each establishment cell of forest floor
+	real,allocatable,dimension(:,:) ::par_floor_dif_rel   !total diffused PAR on each establishment cell of forest floor
+	real,allocatable,dimension(:,:) ::par_grass_dir_rel   !total direct PAR on each grass cell of forest floor
+	real,allocatable,dimension(:,:) ::par_grass_dif_rel   !total diffused PAR on each grass cell of forest floor
    
-   !1yr sum of PAR intensity for establishment cells
-   real,allocatable,dimension(:,:)::sum_par_floor
+    !1yr sum of PAR intensity for establishment cells
+    real,allocatable,dimension(:,:) ::sum_par_floor
 !!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
    
    !Fraction of crown coverage

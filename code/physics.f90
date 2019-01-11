@@ -1,7 +1,7 @@
 !**************************************************************************************************
 ! Air properties
 !**************************************************************************************************
-SUBROUTINE air (tmp_air, humid, ALT)
+SUBROUTINE air (tmp_air, rh, ALT)
 
 !_____________ Set variables
 !Namespace
@@ -10,43 +10,28 @@ SUBROUTINE air (tmp_air, humid, ALT)
    implicit none
    
 !Augments
-   real,intent(IN) ::tmp_air   !2m air temperature (Celcius)
-   real,intent(IN) ::humid     !SPecific humidity (kg kg-1)
-   real,intent(IN) ::ALT       !altitude (m above MSL)
-   
-!Local variables
-   real a1, a2  !for temporal memory
+   real,intent(IN)  ::tmp_air   !2m air temperature (Celcius)
+   real,intent(IN)  ::rh        !relative humidity (kg  kg-1)
+   real,intent(IN)  ::ALT       !altitude (m above MSL)
    
 !_____________ Main part
 !ap: air pressure (hPa)
-   ap = 1013.25 * exp ( -0.2838472*ALT /(8.3144*(tmp_air+ZAT)) )
-   
-!vp: vapour pressure (hPa)
-   vp = ap * humid / ( 0.622 + 0.378 * humid )
+   ap = 1013.25 * exp ( -0.2838472*ALT /(8.3144*(tmp_air+ABS_ZERO)) )
    
 !vp_sat: saturated vapour pressure (hPa)
-   if(tmp_air > 0.0)then   !@water surface
-      vp_sat = 6.1078*(10.0**((7.5*tmp_air)/(237.3+tmp_air)))
-   else                    !@ice surface
-      vp_sat = 6.1078*(10.0**((9.5*tmp_air)/(265.3+tmp_air)))
-   endif
-   vp_sat = max(0.0, vp_sat)
+   vp_sat = Sat_vp (tmp_air)
+   
+!vp: vapour pressure (hPa)
+   vp = vp_sat * rh / 100.0
    
 !vpd: vapour pressure deficit (hPa)
-   vpd = max(0.0, vp_sat - vp)
+   vpd = vp_sat - vp
    
 !slope_vps: slope of saturated vapour pressure as a function of temperature
-   if(tmp_air > 0.0)then  !  at  water  surface
-      a1 = 6.1078 * (2500.0-2.4*tmp_air)
-      a2 = ( 10.0**((7.5*tmp_air)/(237.3+tmp_air)) )
-   else                 !  at  ice  surface
-      a1 = 6.1078 * 2834.0
-      a2 = (10.0**((9.5*tmp_air)/(265.3+tmp_air)))
-   endif
-   slope_vps = ( a1 / (0.4615*(ZAT+tmp_air)*(ZAT+tmp_air)) ) * a2
+   slope_vps = Delta_sat_vp (tmp_air)
    
 !dnsa: air density
-   dnsa = 1.293 * (ZAT / (tmp_air+ZAT)) * (ap / 1013.25) * (1.0 - 0.378 * vp / ap)
+   dnsa = 1.293 * (ABS_ZERO / (tmp_air+ABS_ZERO)) * (ap / 1013.25) * (1.0 - 0.378 * vp / ap)
    
 END SUBROUTINE air
 
@@ -68,7 +53,6 @@ SUBROUTINE radiation_seasonal_change (LAT)
    real   ,intent(IN)::LAT        !latitude  (degree)
    
 !Local variables
-   real    sl_dec     !solar  declination (degree)
    real    ha         !angle from sun-rise to median passage (degree)
    integer doy        !day of year (1~Day_in_Year)
    real    x, a1, a2  !for general usage
@@ -76,11 +60,11 @@ SUBROUTINE radiation_seasonal_change (LAT)
 !_____________ Main part
 Do doy=1, Day_in_Year
    !sl_dec: solar declination (degree)
-      sl_dec = 23.45 * sin(DtoR * 360.0 * ( real(doy) - 81.0 ) / Day_in_Year)
+      sl_dec(doy) = 23.45 * sin(DtoR * 360.0 * ( real(doy) - 81.0 ) / Day_in_Year)
    
    !sl_hgt: solar hight at midday (degree)
-      x           = sin(LAT * DtoR) * sin(sl_dec * DtoR) + &
-                    cos(LAT * DtoR) * cos(sl_dec * DtoR)
+      x           = sin(LAT * DtoR) * sin(sl_dec(doy) * DtoR) + &
+                    cos(LAT * DtoR) * cos(sl_dec(doy) * DtoR)
       x           = min(1.0, max(-1.0, x))
       sl_hgt(doy) = asin(x) * RtoD
    
@@ -88,11 +72,10 @@ Do doy=1, Day_in_Year
       if (sl_hgt(doy) <= 0.1) then
          dlen(doy)=0.0
       else
-         x           = -tan(LAT * DtoR) * tan(sl_dec * DtoR)
+         x           = -tan(LAT * DtoR) * tan(sl_dec(doy) * DtoR)
          ha          = RtoD * acos( min(1.0, max(-1.0, x)) ) !angle from sun-rise to median passage
          dlen (doy)  = 2.0 * (ha / 15.0)
       endif
-      dlen (doy)  = max(min(dlen(doy), 24.0), 0.0)
    
    !rad_stratosphere: shortwave radiation at the atmosphere-top (W/m2) 
       a1 = DtoR * 360.0 * (real(doy)/Day_in_Year) !seasonal angle of the earth's orbit (radian)
@@ -107,9 +90,9 @@ END SUBROUTINE radiation_seasonal_change
 
 
 !**************************************************************************************************
-! Properties for shortwave radiation
+! Radiation properties
 !**************************************************************************************************
-SUBROUTINE radiation (LAT, cloud)
+SUBROUTINE radiation (LAT, rad_short, cloud)
 
 !_____________ Set variables
 !Namespace
@@ -121,34 +104,40 @@ SUBROUTINE radiation (LAT, cloud)
    
 !Augments
    real   ,intent(IN) ::LAT       !latitude  (degree)
-   real   ,intent(IN) ::cloud     !total cloudness (fraction)
+   real   ,intent(IN) ::rad_short !shortwave radiation @ midday (W/m2)
+   real   ,intent(OUT)::cloud     !total cloudness (fraction)
    
 !Local variables
-   real rad_diffuse   !diffused radiation in rad (W/m2)
-   real rad_direct    !direct radiation in rad (W/m2)
-   real x             !for general usage
+   real    rad_diffuse   !diffused radiation in rad (W/m2)
+   real    rad_direct    !direct radiation in rad (W/m2)
+   real    x             !for general usage
+   integer dom_mid       !midday of the month
    
 !_____________ Main part
 !trap for high latitude regions
 if (sl_hgt(doy)<=0.1) then
-   rad         = 0.0
    par         = 0.0
    par_diffuse = 0.0
    par_direct  = 0.0
    return
 endif
     
-!rad: Shortwave radiation at midday at the ground surface (W/m2)
-   x = 0.803 - 0.34*cloud - 0.458*cloud*cloud  !Black's
-   x = 0.8964 - 0.5392 * cloud   !new regression based on NCEP/NCAR data
-   x = min(1.0,  max(0.0, x))
-   rad = rad_stratosphere(doy) * x
+!rad_short: Shortwave radiation at midday at the ground surface (W/m2)
+   !x = 0.803 - 0.34*cloud - 0.458*cloud*cloud  !Black's
+   !x = 0.8964 - 0.5392 * cloud   !new regression based on NCEP/NCAR data
+   !x = min(1.0,  max(0.0, x))
+   !rad_short = rad_stratosphere(doy) * x
+   
+   dom_mid = sum( Day_in_month(1:Month(doy)) )-15 !Mid day of the month
+   x       = rad_short / max(0.01, rad_stratosphere(dom_mid))
+   cloud   = (0.8964 - x) / 0.5392
+   cloud   = max(0.0, min(cloud, 1.0))
    
 !par: photosynthetically active radiation in mid_day (micro mol photon m-2 s-1)
 !   based  on  the  empirical  Tooming's  equation
    if(rad_stratosphere(doy) /= 0.0) then
-      rad_diffuse = max( 0.0 , rad * (0.958 - 0.982*(rad/rad_stratosphere(doy))) )
-      rad_direct  = max( 0.0 , rad - rad_diffuse )
+      rad_diffuse = max( 0.0 , rad_short * (0.958 - 0.982*(rad_short/max(0.01,rad_stratosphere(dom_mid)))) )
+      rad_direct  = max( 0.0 , rad_short - rad_diffuse )
       
       par_diffuse = 4.2 * 0.57 * rad_diffuse
       par_direct  = 4.6 * 0.43 * rad_direct 
@@ -212,7 +201,7 @@ END SUBROUTINE albedo_calc
 !**************************************************************************************************
 ! Net radiation
 !**************************************************************************************************
-SUBROUTINE net_radiation (tmp_air, cloud)
+SUBROUTINE net_radiation (tmp_air, rad_short, rad_long, cloud)
 
 !_____________ Set variables
 !Namespace
@@ -226,22 +215,26 @@ SUBROUTINE net_radiation (tmp_air, cloud)
    
 !Augments
    real,intent(IN)::tmp_air      !2m air temperature (Celcius)
+   real,intent(IN)::rad_short    !downward shortwave radiation (W/m2)
+   real,intent(IN)::rad_long     !downward longwave  radiation (W/m2)
    real,intent(IN)::cloud        !total cloudness, fraction
    
 !_____________ Main part
-!radnet_long: net longwave radiation (+:Upward direction)
-   radnet_long = (5.6703/100000000.0) * ((tmp_air + ZAT)**4.0) &
-                  * (0.39 + 0.058/(vp+1.0)) * (1.0 - 0.65*cloud)
+!radlong_up: longwave radiation (+:Upward direction) PREVIOUS 
+   radlong_up = (5.6703/100000000.0) * ((tmp_air + ABS_ZERO)**4.0) - rad_long
+  !Previous way of calculation
+  !radlong_up = (5.6703/100000000.0) * ((tmp_air + ABS_ZERO)**4.0) &
+  !           * (0.39 + 0.058/(vp+1.0)) * (1.0 - 0.65*cloud)
    
 !radnet_veg: net radiation of plant canopy (W m-2, day time mean)
 !            0.5-> convertion coefficient from midday to daytime mean value
-   radnet_veg = 0.5 * rad * (1.0-albedo_leaf) * (1.0 - ir_tree*ir_grass) &
-              - radnet_long                   * (1.0 - ir_tree*ir_grass)  
+   radnet_veg = 0.5 * rad_short * (1.0-albedo_leaf) * (1.0 - ir_tree*ir_grass) * dlen(doy) / 24.0 &
+              - radlong_up                    * (1.0 - ir_tree*ir_grass)  
    
 !radnet_soil: net radiation of soil surface (W m-2, whole day mean)
 !            0.5-> convertion coefficient from midday to daytime mean value
-   radnet_soil = 0.5 * rad * (1.0-albedo_soil) * (ir_tree*ir_grass) * dlen(doy) / 24.0 &
-               - radnet_long                   * (ir_tree*ir_grass)
+   radnet_soil = 0.5 * rad_short * (1.0-albedo_soil) * (ir_tree*ir_grass) * dlen(doy) / 24.0 &
+               - radlong_up                    * (ir_tree*ir_grass)
    
 END SUBROUTINE net_radiation
 
@@ -313,7 +306,7 @@ SUBROUTINE waterbudget (W_fi, W_wilt, prec, wind, tmp_air, tmp_soil)
    flux_tr = 0.0
    
 !_____________ lh: heat of water vaporization at 1atm (J/g H2O)
-   lh = 2500.25 - 2.365 * tmp_air   ! Fritschen and Gay (1979)
+   lh = Latent_heat (tmp_air) / (1000.0)
    
 !_____________ Psychrometer Coefficient (hPa k-1), around 0.667
    ! 1004.: Specific-Heat at Constant-Pressure of Dry-Air (J/kg/K)
@@ -408,7 +401,8 @@ SUBROUTINE waterbudget (W_fi, W_wilt, prec, wind, tmp_air, tmp_soil)
       rain_no = min( rain_no, 10.0 * 12.0 / Day_in_Year )
    endif
    
-   flux_ic = 3.0 * rain_no * ( 1.0 - exp(-1.0*lai) )
+   x       = sum(lai_RunningRecord(1,:)) !LAI for all PFTs
+   flux_ic = 3.0 * rain_no * ( 1.0 - exp(-1.0*x) )
    flux_ic = min(flux_rain, flux_ic)          
    
    !water balance
@@ -524,15 +518,23 @@ SUBROUTINE waterbudget (W_fi, W_wilt, prec, wind, tmp_air, tmp_soil)
 !   endif
    
 !_____________ Update running records
-   flux_ro_RunningRecord(2:Day_in_Year) = flux_ro_RunningRecord(1:Day_in_Year-1)
-   flux_ic_RunningRecord(2:Day_in_Year) = flux_ic_RunningRecord(1:Day_in_Year-1)
-   flux_ev_RunningRecord(2:Day_in_Year) = flux_ev_RunningRecord(1:Day_in_Year-1)
-   flux_tr_RunningRecord(2:Day_in_Year) = flux_tr_RunningRecord(1:Day_in_Year-1)
+   flux_ro1_RunningRecord(2:Day_in_Year) = flux_ro1_RunningRecord(1:Day_in_Year-1)
+   flux_ro2_RunningRecord(2:Day_in_Year) = flux_ro2_RunningRecord(1:Day_in_Year-1)
+   flux_ic_RunningRecord (2:Day_in_Year) = flux_ic_RunningRecord (1:Day_in_Year-1)
+   flux_ev_RunningRecord (2:Day_in_Year) = flux_ev_RunningRecord (1:Day_in_Year-1)
+   flux_tr_RunningRecord (2:Day_in_Year) = flux_tr_RunningRecord (1:Day_in_Year-1)
+   flux_sl_RunningRecord (2:Day_in_Year) = flux_sl_RunningRecord (1:Day_in_Year-1)
+   flux_tw_RunningRecord (2:Day_in_Year) = flux_tw_RunningRecord (1:Day_in_Year-1)
+   flux_sn_RunningRecord (2:Day_in_Year) = flux_sn_RunningRecord (1:Day_in_Year-1)
    
-   flux_ro_RunningRecord(1) = flux_ro
-   flux_ic_RunningRecord(1) = flux_ic
-   flux_ev_RunningRecord(1) = flux_ev
-   flux_tr_RunningRecord(1) = flux_tr
+   flux_ro1_RunningRecord(1) = flux_ro
+   flux_ro2_RunningRecord(1) = 0.0
+   flux_ic_RunningRecord (1) = flux_ic
+   flux_ev_RunningRecord (1) = flux_ev
+   flux_tr_RunningRecord (1) = flux_tr
+   flux_sl_RunningRecord (1) = 0.0
+   flux_tw_RunningRecord (1) = flux_tw
+   flux_sn_RunningRecord (1) = flux_snow
    
    pool_w1_RunningRecord(2:Day_in_Year) = pool_w1_RunningRecord(1:Day_in_Year-1)
    pool_w1_RunningRecord(1)             = sum(pool_w(1:5)) / 5.0
@@ -544,68 +546,19 @@ SUBROUTINE waterbudget (W_fi, W_wilt, prec, wind, tmp_air, tmp_soil)
       write(*,'(a,2f8.2)') 'error@waterbudget water leakage occured!', pool_total_reserved, x
    endif
    
+! !TMP
+! 1 format(E10.4e1,a)  !Output format (Sample: "0.284E+3"+",")
+! 2 format(E10.4e1  )  !Output format (Sample: "0.284E+3"    )
+! write(*, '(i3,a)', advance='no') year, ","
+! write(*, '(i3,a)', advance='no') doy, ","
+! write(*, 1, advance='no') prec     , ","
+! write(*, 1, advance='no') flux_ro  , ","
+! write(*, 1, advance='no') flux_ic  , ","
+! write(*, 1, advance='no') flux_ev  , ","
+! write(*, 1, advance='no') flux_tr  , ","
+! write(*, 1, advance='no') flux_rain, ","
+! write(*, 1, advance='no') flux_snow, ","
+! write(*, 2, advance='no') flux_tw       
+! write(*,*)
+
 END SUBROUTINE waterbudget
-
-
-
-!*************************************************************************************************
-! light interruption index (daily computation)
-!*************************************************************************************************
-SUBROUTINE ir_index ()
-
-!_____________ Set variables
-!Namespace
-   USE data_structure
-   USE vegi_status_current1
-   USE vegi_status_current2
-   USE grid_status_current2
-!!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>TN:Add
-   USE mod_grid
-!!!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<TN:Add
-   implicit none
-   
-!Local variables
-   integer no, p
-   real    x, y
-   
-!_____________ Main part
-   ir_tree        = 0.00
-   ir_grass       = 0.00
-   
-IF ( par > 1.0 ) then
-   !ir_tree: radiation-interruption-coefficient by tree crown
-   x = 0.0 ; y = 0.0 
-   do no = 1, Max_no
-      if (tree_exist(no)) then
-         p = pft(no)
-         if (phenology(p)) then
-            x = x + la(no) * max(EK0(p),eK(p)) !sum of light attenuation index (direct radiation)
-            y = y + la(no) * EK0(p)            !sum of light attenuation index (diffused radiation)
-         endif
-      endif
-   enddo
-!   x = x / Max_loc / Max_loc !!!>>>>>>>>>>>>TN:rm
-!   y = y / Max_loc / Max_loc !!!>>>>>>>>>>>>TN:rm
-   x = x / real(GRID%Area) !!!<<<<<<<<<<<<TN:add
-   y = y / real(GRID%Area) !!!<<<<<<<<<<<<TN:add
-   
-   ir_tree = (par_direct/par)*exp(-1.0*x) + (par_diffuse/par)*exp(-1.0*y)
-   ir_tree = min(1.0, max(0.0, ir_tree) )
-   
-   !ir_grass: radiation-interruption-coefficient by grass leaf
-   if (pft_exist(C3g_no)) then
-      p=C3g_no
-   else
-      p=C4g_no
-   endif
-   
-!   x = sum(lai_grass(:,:)) / DivedG / DivedG !!!>>>>>>>>>>>>TN:rm
-   x = sum(lai_grass(:,:)) / real(GRID%N_tot) !!!<<<<<<<<<<<<TN:add
-   
-   ir_grass = (par_direct  / par) * exp(-1.0 * x *  eK(p)) + &
-              (par_diffuse / par) * exp(-1.0 * x * EK0(p))    
-   ir_grass = min(1.0, max(0.0, ir_grass) )
-   
-ENDIF
-
-END SUBROUTINE ir_index
