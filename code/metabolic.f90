@@ -764,7 +764,7 @@ END DO
    
    !obtain GPP per unit area
 !$omp parallel
-!$omp do private(i,j,k,const0,const1,const2,a2,a3,const3,x)
+!$omp do private(i,j,k,const0,const1,const2,a2,a3,const3,x), &
 !$omp reduction(+:canopy_cond,gpp,npp,flux_c_uptake_RR)
 !DO i=1, DivedG !!!>>>>>>>>>>>>TN:rm
 !DO j=1, DivedG !!!>>>>>>>>>>>>TN:rm
